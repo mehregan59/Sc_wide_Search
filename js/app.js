@@ -49,6 +49,10 @@
     });
   });
 
+  // ── Paywall search filter ────────────────────────────────────
+  const pwSearch = document.getElementById('paywall-search');
+  if (pwSearch) pwSearch.addEventListener('input', () => SWDExport.renderPaywallPanel());
+
   // ── Schema table ────────────────────────────────────────────
   document.getElementById('schema-tbody').innerHTML = SWDConfig.SCHEMA.map(s =>
     `<tr><td class="field-name">${s.field}</td><td class="field-type">${s.type}</td><td style="font-size:12.5px;color:var(--ink-2)">${s.desc}</td></tr>`
@@ -134,7 +138,16 @@
     badge.textContent = window._SWDRecords.length;
     badge.hidden = window._SWDRecords.length === 0;
 
+    // Update paywalled badge
+    const paywalled = (window._SWDRecords||[]).filter(r =>
+      r.doi && r.doi !== 'not reported' &&
+      (r.pdf_available === 'paywalled' || r.pdf_available === 'no' || r.pdf_available === 'unknown')
+    );
+    const pwBadge = document.getElementById('badge-paywall');
+    if (pwBadge) { pwBadge.textContent = paywalled.length; pwBadge.hidden = paywalled.length === 0; }
+
     renderTable();
+    SWDExport.renderPaywallPanel();
     if (!stopped) switchTab('results');
   }
 
@@ -243,6 +256,7 @@
     if(btn) btn.classList.add('active');
     const panel=document.getElementById(`panel-${id}`);
     if(panel) panel.classList.add('active');
+    if(id==='paywall') SWDExport.renderPaywallPanel();
   }
 
   function esc(s) {
