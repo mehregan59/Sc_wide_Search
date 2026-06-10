@@ -1,6 +1,6 @@
 # Sc_wide_Search —  Global Record Collector
 
-A static web application for systematically collecting, extracting, and structuring global occurrence, distribution, and strain-origin records of *Drosophila suzukii* (Matsumura, 1931) — the spotted wing drosophila.
+A static web application for systematically collecting, extracting, and structuring global occurrence.
 
 **Live app:** https://mehregan59.github.io/Sc_wide_Search
 
