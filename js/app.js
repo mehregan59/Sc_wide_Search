@@ -5,8 +5,13 @@
   window._SWDRecords = [];
 
   let isRunning = false, abortCtrl = null, midTerms = [], currentCat = 'all';
-  let stats = { queries:0, raw:0, dedup:0, records:0, noloc:0, errors:0 };
+  let stats = { queries:0, raw:0, dedup:0, records:0, noloc:0, errors:0, skipped:0 };
   const catCounts = { A:0, B:0, C:0, D:0, E:0, F:0 };
+
+  // Databases that return [] by design (stubs / occurrence-only / no term search)
+  const STUB_DBS = new Set(['unpaywall','base','eppo','cabi','usda','jki','naro','caas','rda','bold','ncbi','lens']);
+  // Occurrence DBs: only meaningful to query once per session, not per term
+  const ONCE_DBS = new Set(['gbif','inat']);
 
   // ── Tab nav ─────────────────────────────────────────────────
   document.querySelectorAll('.nav-tab').forEach(btn => {
@@ -69,7 +74,8 @@
     abortCtrl = new AbortController();
     window._SWDRecords = [];
     SWDExtractor.resetSeen();
-    stats = { queries:0, raw:0, dedup:0, records:0, noloc:0, errors:0 };
+    SWDEngines.resetCache();   // clear GBIF / iNat one-shot caches
+    stats = { queries:0, raw:0, dedup:0, records:0, noloc:0, errors:0, skipped:0 };
     Object.keys(catCounts).forEach(k=>catCounts[k]=0);
 
     document.getElementById('log-box').innerHTML = '';
@@ -81,54 +87,103 @@
     const s = SWDConfig.getSettings();
     const allTerms = [...s.speciesTerms,...s.commonTerms,...s.extraTerms,...midTerms].filter(Boolean);
     const signal = abortCtrl.signal;
-    const total = s.databases.length * allTerms.length;
+
+    // Build smart query plan: occurrence DBs run once, stubs are skipped entirely,
+    // real search DBs run once per term.
+    const searchDBs    = s.databases.filter(db => !STUB_DBS.has(db) && !ONCE_DBS.has(db));
+    const occurrenceDBs= s.databases.filter(db => ONCE_DBS.has(db));
+    const stubDBs      = s.databases.filter(db => STUB_DBS.has(db));
+
+    const total = (searchDBs.length * allTerms.length) + occurrenceDBs.length;
     let done = 0;
 
-    logMsg(`Search started — ${s.databases.length} databases · ${allTerms.length} terms`);
-    logMsg(`Year range: ${s.yearFrom}–${s.yearTo} · max ${s.maxPerQuery}/query`);
+    logMsg(`Search started — ${searchDBs.length} search DBs × ${allTerms.length} terms + ${occurrenceDBs.length} occurrence DBs`);
+    if (stubDBs.length) logMsg(`${stubDBs.length} institutional DBs selected but not yet wired (stub) — skipped`, 'warn');
+    logMsg(`Year range: ${s.yearFrom}–${s.yearTo}`);
 
-    for (const db of s.databases) {
+    // 1. Occurrence databases (GBIF, iNaturalist) — one fetch, term-independent
+    for (const db of occurrenceDBs) {
       if (signal.aborted) break;
+      const label = SWDConfig.DB_LABELS[db]||db;
+      logMsg(`Fetching all occurrence records from ${label}…`);
+      stats.queries++;
+      try {
+        const hits = await SWDEngines.query(db, '', s, signal);
+        stats.raw += hits.length;
+        let newCount = 0;
+        for (const hit of hits) {
+          for (const rec of SWDExtractor.processHit(hit, s)) {
+            if (SWDExtractor.isDuplicate(rec)) continue;
+            window._SWDRecords.push(rec);
+            newCount++; stats.dedup++;
+            if (rec.category==='E') stats.noloc++;
+            else { stats.records++; catCounts[rec.category]=(catCounts[rec.category]||0)+1; }
+          }
+        }
+        logMsg(`  → ${hits.length} occurrences · ${newCount} new`, hits.length ? 'ok' : 'warn');
+      } catch(err) {
+        if (err.name==='AbortError') break;
+        stats.errors++;
+        logMsg(`  ⚠ ${label} failed: ${err.message}`, 'err');
+      }
+      updateStats();
+      done++;
+      setProgress((done/total)*100, label);
+    }
+
+    // 2. Search databases — one query per term
+    for (const db of searchDBs) {
+      if (signal.aborted) break;
+      const label = SWDConfig.DB_LABELS[db]||db;
+
       for (const term of allTerms) {
         if (signal.aborted) break;
-        const label = SWDConfig.DB_LABELS[db]||db;
-        logMsg(`Querying ${label} for "${term.slice(0,50)}${term.length>50?'…':''}"`);
+        logMsg(`${label} ← "${term.slice(0,55)}${term.length>55?'…':''}"`);
         stats.queries++; updateStats();
 
         try {
           const hits = await SWDEngines.query(db, term, s, signal);
-          stats.raw += hits.length;
-          let newCount = 0;
-          for (const hit of hits) {
-            for (const rec of SWDExtractor.processHit(hit, s)) {
-              if (SWDExtractor.isDuplicate(rec)) continue;
-              window._SWDRecords.push(rec);
-              newCount++; stats.dedup++;
-              if (rec.category==='E') stats.noloc++;
-              else { stats.records++; catCounts[rec.category]=(catCounts[rec.category]||0)+1; }
+
+          // hits===null means CORS/network miss — warn but don't count as error
+          if (hits === null) {
+            logMsg(`  ⚠ ${label} unreachable (network/CORS) — skipped`, 'warn');
+            stats.skipped++;
+          } else {
+            stats.raw += hits.length;
+            let newCount = 0;
+            for (const hit of hits) {
+              for (const rec of SWDExtractor.processHit(hit, s)) {
+                if (SWDExtractor.isDuplicate(rec)) continue;
+                window._SWDRecords.push(rec);
+                newCount++; stats.dedup++;
+                if (rec.category==='E') stats.noloc++;
+                else { stats.records++; catCounts[rec.category]=(catCounts[rec.category]||0)+1; }
+              }
             }
+            if (hits.length===0) logMsg(`  → 0 results`, 'warn');
+            else logMsg(`  → ${hits.length} hits · ${newCount} new · ${hits.length-newCount} dupes`, 'ok');
           }
-          if (hits.length===0) logMsg(`  → 0 results`,'warn');
-          else logMsg(`  → ${hits.length} hits · ${newCount} new · ${hits.length-newCount} dupes`,'ok');
         } catch(err) {
           if (err.name==='AbortError') break;
           stats.errors++;
-          logMsg(`  ⚠ Error on ${label}: ${err.message}`,'err');
+          logMsg(`  ✖ ${label} error: ${err.message}`, 'err');
         }
 
         updateStats();
         done++;
-        setProgress((done/total)*100, `${SWDConfig.DB_LABELS[db]||db} · "${term.slice(0,30)}"`);
+        setProgress((done/total)*100, `${label} · "${term.slice(0,28)}"`);
       }
     }
 
     const stopped = signal.aborted;
-    setProgress(stopped?null:100, stopped?'Stopped':'Complete');
-    setStatus(stopped?'stopped':'done', stopped?'Stopped':'Done');
-    logMsg(stopped
-      ? `Stopped. ${window._SWDRecords.length} records collected.`
-      : `Complete. ${window._SWDRecords.length} records · ${stats.errors} errors.`,
-      stopped?'warn':'ok');
+    setProgress(stopped ? null : 100, stopped ? 'Stopped' : 'Complete');
+    setStatus(stopped ? 'stopped' : 'done', stopped ? 'Stopped' : 'Done');
+    logMsg(
+      stopped
+        ? `Stopped. ${window._SWDRecords.length} records collected.`
+        : `Complete — ${window._SWDRecords.length} records · ${stats.errors} errors · ${stats.skipped} skipped`,
+      stopped ? 'warn' : 'ok'
+    );
 
     isRunning = false;
     document.getElementById('btn-run').disabled = false;
@@ -138,7 +193,6 @@
     badge.textContent = window._SWDRecords.length;
     badge.hidden = window._SWDRecords.length === 0;
 
-    // Update paywalled badge
     const paywalled = (window._SWDRecords||[]).filter(r =>
       r.doi && r.doi !== 'not reported' &&
       (r.pdf_available === 'paywalled' || r.pdf_available === 'no' || r.pdf_available === 'unknown')
