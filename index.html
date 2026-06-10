@@ -8,6 +8,48 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Paywalled DOI panel ─────────────────────────────── */
+    .paywall-toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:1rem; }
+    .paywall-toolbar input { flex:1; min-width:200px; }
+    .paywall-count { font-size:12px; font-family:var(--mono); color:var(--ink-3); white-space:nowrap; }
+    .paywall-actions-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:1.25rem; }
+    .paywall-list { display:flex; flex-direction:column; gap:0; }
+    .paywall-row {
+      display:flex; gap:12px; padding:14px 16px;
+      border:1px solid var(--border); border-top:none;
+      background:var(--surface); transition:background .1s;
+    }
+    .paywall-row:first-child { border-top:1px solid var(--border); border-radius:var(--radius) var(--radius) 0 0; }
+    .paywall-row:last-child  { border-radius:0 0 var(--radius) var(--radius); }
+    .paywall-row:only-child  { border-radius:var(--radius); }
+    .paywall-row:hover { background:var(--paper); }
+    .paywall-index { font-family:var(--mono); font-size:12px; color:var(--ink-3); min-width:28px; padding-top:2px; }
+    .paywall-body  { flex:1; min-width:0; }
+    .paywall-title { font-size:13.5px; font-weight:500; color:var(--ink); margin-bottom:4px; line-height:1.45; }
+    .paywall-meta  { font-size:12px; color:var(--ink-3); margin-bottom:8px; }
+    .paywall-doi   { display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
+    .doi-code {
+      font-family:var(--mono); font-size:12px; color:var(--accent);
+      background:var(--paper); border:1px solid var(--border);
+      padding:3px 8px; border-radius:var(--radius);
+      transition:background .25s; cursor:text; user-select:all;
+    }
+    .paywall-copy { font-size:11px; padding:3px 10px; }
+    .paywall-actions { display:flex; gap:10px; flex-wrap:wrap; }
+    .paywall-action-link {
+      font-size:12px; color:var(--accent); text-decoration:none;
+      padding:2px 0; border-bottom:1px solid transparent; transition:border-color .12s;
+    }
+    .paywall-action-link:hover { border-bottom-color:var(--accent); }
+    .paywall-empty { padding:3rem; text-align:center; font-size:13px; color:var(--ink-3); }
+    .paywall-info-box {
+      background:var(--accent-lt); border:1px solid var(--accent);
+      border-radius:var(--radius-lg); padding:1rem 1.25rem;
+      margin-bottom:1.25rem; font-size:13px; color:var(--ink-2); line-height:1.7;
+    }
+    .paywall-info-box strong { color:var(--ink); font-weight:600; }
+  </style>
 </head>
 <body>
 
@@ -24,6 +66,7 @@
       <button class="nav-tab active" data-tab="config">Configure</button>
       <button class="nav-tab" data-tab="run">Run</button>
       <button class="nav-tab" data-tab="results">Results <span class="nav-badge" id="badge-results" hidden>0</span></button>
+      <button class="nav-tab" data-tab="paywall">Paywalled DOIs <span class="nav-badge" id="badge-paywall" hidden>0</span></button>
       <button class="nav-tab" data-tab="export">Export</button>
       <button class="nav-tab" data-tab="about">About</button>
     </nav>
@@ -39,7 +82,6 @@
       <p>Set terms, databases, and filters before running. All parameters can be adjusted mid-run.</p>
     </div>
     <div class="config-grid">
-
       <div class="config-card">
         <h2>Species &amp; synonym terms</h2>
         <div class="field-row">
@@ -60,8 +102,7 @@ mosca de alas manchadas
 Drosophile a ailes tachetees
 spotted wing drosophila
 &#26611;&#32764;&#26524;&#34507;
-&#12461;&#12452;&#12525;&#12471;&#12519;&#12454;&#12472;&#12519;&#12454;&#12496;&#12456;
-&#50�;&#47336;&#45224;&#44060;&#52488;&#54028;&#47532;</textarea>
+&#12461;&#12452;&#12525;&#12471;&#12519;&#12454;&#12472;&#12519;&#12454;&#12496;&#12456;</textarea>
           </div>
         </div>
         <div class="field">
@@ -152,7 +193,6 @@ spotted wing drosophila
         <button class="btn btn-ghost" id="btn-reset-config">Reset defaults</button>
         <div class="action-hint">Parameters can be adjusted mid-run on the Run tab.</div>
       </div>
-
     </div>
   </section>
 
@@ -294,6 +334,36 @@ spotted wing drosophila
     </div>
   </section>
 
+  <!-- PAYWALLED DOIs -->
+  <section class="tab-panel" id="panel-paywall">
+    <div class="panel-title">
+      <h1>Paywalled DOIs</h1>
+      <p>Every paper found behind a paywall, with its DOI and direct access options. Copy one DOI to request the paper from the author, your library, or a preprint server.</p>
+    </div>
+
+    <div class="paywall-info-box">
+      <strong>How to get these papers legally:</strong><br>
+      1. <strong>Email the author</strong> &mdash; paste the DOI into Google Scholar, find the corresponding author, and ask. Authors almost always respond.<br>
+      2. <strong>Interlibrary loan (ILL)</strong> &mdash; your university library can obtain any paper, usually within 24&ndash;48 hours, at no cost.<br>
+      3. <strong>Unpaywall / OA Button</strong> &mdash; click the &ldquo;Unpaywall &rarr;&rdquo; link next to each DOI to check for a free legal version automatically.<br>
+      4. <strong>Europe PMC / Semantic Scholar</strong> &mdash; links below check for author manuscripts and preprints.
+    </div>
+
+    <div class="paywall-toolbar">
+      <input type="text" id="paywall-search" placeholder="Filter by author, title, country, year&hellip;" />
+      <span class="paywall-count" id="paywall-count"></span>
+    </div>
+
+    <div class="paywall-actions-bar">
+      <button class="btn btn-primary" onclick="SWDExport.paywallTxt()">Download DOI list (.txt) &darr;</button>
+      <button class="btn btn-ghost" onclick="SWDExport.paywallCsv()">Download as CSV &darr;</button>
+    </div>
+
+    <div class="paywall-list" id="paywall-list">
+      <div class="paywall-empty">Run a search &mdash; paywalled papers will appear here automatically.</div>
+    </div>
+  </section>
+
   <!-- EXPORT -->
   <section class="tab-panel" id="panel-export">
     <div class="panel-title">
@@ -305,8 +375,8 @@ spotted wing drosophila
       <div class="export-card export-featured"><div class="export-icon">&#x2B07;</div><div class="export-name">CSV &mdash; primary only</div><div class="export-desc">Category A: verified original collection records only.</div><button class="btn btn-primary" onclick="SWDExport.csv('A')">Download A-only CSV</button></div>
       <div class="export-card"><div class="export-icon">{}</div><div class="export-name">JSON</div><div class="export-desc">Full structured records for programmatic use.</div><button class="btn btn-ghost" onclick="SWDExport.json()">Download JSON</button></div>
       <div class="export-card"><div class="export-icon">@</div><div class="export-name">BibTeX</div><div class="export-desc">All citations for Zotero, Mendeley, etc.</div><button class="btn btn-ghost" onclick="SWDExport.bibtex()">Download .bib</button></div>
-      <div class="export-card"><div class="export-icon">&#x2B07;</div><div class="export-name">GeoJSON</div><div class="export-desc">Records with coordinates. Open directly in QGIS or Leaflet.</div><button class="btn btn-ghost" onclick="SWDExport.geojson()">Download GeoJSON</button></div>
-      <div class="export-card"><div class="export-icon">&#x2B07;</div><div class="export-name">Missing sources</div><div class="export-desc">Hard-to-access sources checklist for manual follow-up.</div><button class="btn btn-ghost" onclick="SWDExport.missing()">Download TXT</button></div>
+      <div class="export-card"><div class="export-icon">&#x2B07;</div><div class="export-name">GeoJSON</div><div class="export-desc">Records with coordinates. Open in QGIS or Leaflet.</div><button class="btn btn-ghost" onclick="SWDExport.geojson()">Download GeoJSON</button></div>
+      <div class="export-card"><div class="export-icon">&#x2B07;</div><div class="export-name">Missing sources</div><div class="export-desc">Hard-to-access sources for manual follow-up.</div><button class="btn btn-ghost" onclick="SWDExport.missing()">Download TXT</button></div>
     </div>
     <div class="schema-section">
       <h2>Column schema</h2>
@@ -321,27 +391,26 @@ spotted wing drosophila
       <div class="about-main">
         <div class="about-section">
           <h2>Purpose</h2>
-          <p>SWD Search is an open-source tool for systematically collecting and structuring global occurrence, distribution, and strain-origin records of <em>Drosophila suzukii</em> (Matsumura, 1931) &mdash; the spotted wing drosophila. It queries heterogeneous sources in parallel, extracts location data, classifies evidence type, and exports to formats suitable for mapping, meta-analysis, and systematic review.</p>
+          <p>SWD Search is an open-source tool for systematically collecting and structuring global occurrence, distribution, and strain-origin records of <em>Drosophila suzukii</em> (Matsumura, 1931). It queries heterogeneous sources in parallel, extracts location data, classifies evidence type, and exports to formats suitable for mapping, meta-analysis, and systematic review.</p>
         </div>
         <div class="about-section">
           <h2>Search strategy</h2>
-          <p>Queries are broad and multilingual. Sources are not excluded because the title or abstract lacks geographic terms &mdash; all papers mentioning the species are captured and flagged for manual full-text review of methods sections, sampling site descriptions, and supplementary materials.</p>
-          <p>Laboratory and experimental studies are included if they report the geographic origin of fly strains or colonies. One row is created per source-location combination, so a single paper reporting multiple sites produces multiple rows.</p>
+          <p>Queries are broad and multilingual. Sources are not excluded because the title or abstract lacks geographic terms &mdash; all papers mentioning the species are captured and flagged for manual full-text review. One row is created per source-location combination.</p>
         </div>
         <div class="about-section">
           <h2>Output categories</h2>
           <dl class="cat-dl">
             <dt><span class="cat-pill cat-a">A</span> Primary location records</dt><dd>Original collection, trapping, detection, sequencing, or monitoring.</dd>
             <dt><span class="cat-pill cat-b">B</span> Useful sampling locations</dt><dd>Not first records, but additional confirmed presence sites.</dd>
-            <dt><span class="cat-pill cat-c">C</span> Lab / experimental strain origin</dt><dd>Geographic origin of laboratory colonies or field material used in experiments.</dd>
-            <dt><span class="cat-pill cat-d">D</span> Modelling / review</dt><dd>Secondary geographic information from models and review papers.</dd>
+            <dt><span class="cat-pill cat-c">C</span> Lab / experimental strain origin</dt><dd>Geographic origin of laboratory colonies or field material.</dd>
+            <dt><span class="cat-pill cat-d">D</span> Modelling / review</dt><dd>Secondary geographic information from models and reviews.</dd>
             <dt><span class="cat-pill cat-e">E</span> No usable location</dt><dd>Mentions <em>D. suzukii</em> but contains no extractable location data.</dd>
             <dt><span class="cat-pill cat-f">F</span> Pre-1980 historical records</dt><dd>Historical and native-range records from before 1980.</dd>
           </dl>
         </div>
         <div class="about-section">
           <h2>APIs used</h2>
-          <p>All APIs are public and free: Semantic Scholar, OpenAlex, Europe PMC, Crossref, GBIF, iNaturalist, Zenodo. Rate limits are respected automatically via built-in delays. Institutional databases (EPPO, CABI, USDA, NARO, CAAS, RDA) are stubbed &mdash; see <code>js/engines.js</code> to add real connectors.</p>
+          <p>All APIs are public and free: Semantic Scholar, OpenAlex, Europe PMC, Crossref, GBIF, iNaturalist, Zenodo. Institutional databases (EPPO, CABI, USDA, NARO, CAAS, RDA) are stubbed &mdash; see <code>js/engines.js</code>.</p>
         </div>
       </div>
       <div class="about-side">
@@ -351,7 +420,7 @@ spotted wing drosophila
           <a href="https://api.semanticscholar.org/graph/v1" target="_blank" rel="noopener">Semantic Scholar API &rarr;</a>
           <a href="https://api.openalex.org" target="_blank" rel="noopener">OpenAlex API &rarr;</a>
           <a href="https://www.ebi.ac.uk/europepmc/webservices/rest/search" target="_blank" rel="noopener">Europe PMC API &rarr;</a>
-          <a href="https://api.gbif.org/v1/occurrence/search" target="_blank" rel="noopener">GBIF Occurrence API &rarr;</a>
+          <a href="https://unpaywall.org" target="_blank" rel="noopener">Unpaywall &rarr;</a>
         </div>
         <div class="about-links">
           <h3>Source</h3>
