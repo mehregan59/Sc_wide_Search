@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SWD Search — Drosophila suzukii Global Record Collector</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-inner">
+    <div class="header-brand">
+      <span class="brand-icon">&#x2B21;</span>
+      <div>
+        <div class="brand-name">SWD Search</div>
+        <div class="brand-sub">Drosophila suzukii &middot; Global Record Collector</div>
+      </div>
+    </div>
+    <nav class="header-nav">
+      <button class="nav-tab active" data-tab="config">Configure</button>
+      <button class="nav-tab" data-tab="run">Run</button>
+      <button class="nav-tab" data-tab="results">Results <span class="nav-badge" id="badge-results" hidden>0</span></button>
+      <button class="nav-tab" data-tab="export">Export</button>
+      <button class="nav-tab" data-tab="about">About</button>
+    </nav>
+  </div>
+</header>
+
+<main class="app-main">
+
+  <!-- CONFIGURE -->
+  <section class="tab-panel active" id="panel-config">
+    <div class="panel-title">
+      <h1>Search configuration</h1>
+      <p>Set terms, databases, and filters before running. All parameters can be adjusted mid-run.</p>
+    </div>
+    <div class="config-grid">
+
+      <div class="config-card">
+        <h2>Species &amp; synonym terms</h2>
+        <div class="field-row">
+          <div class="field">
+            <label for="cfg-species">Scientific names</label>
+            <textarea id="cfg-species" rows="6">Drosophila suzukii
+Sophophora suzukii
+spotted wing drosophila
+SWD
+spotted wing fly
+cherry vinegar fly</textarea>
+          </div>
+          <div class="field">
+            <label for="cfg-common">Regional &amp; common names</label>
+            <textarea id="cfg-common" rows="6">Kirschessigfliege
+mosca del ciliegio
+mosca de alas manchadas
+Drosophile a ailes tachetees
+spotted wing drosophila
+&#26611;&#32764;&#26524;&#34507;
+&#12461;&#12452;&#12525;&#12471;&#12519;&#12454;&#12472;&#12519;&#12454;&#12496;&#12456;
+&#50�;&#47336;&#45224;&#44060;&#52488;&#54028;&#47532;</textarea>
+          </div>
+        </div>
+        <div class="field">
+          <label for="cfg-extra">Additional custom terms <span class="label-hint">(one per line)</span></label>
+          <textarea id="cfg-extra" rows="3" placeholder="e.g. SWD Japan 2008&#10;cherry drosophila Korea"></textarea>
+        </div>
+        <div class="field">
+          <label for="cfg-exclude">Exclude terms <span class="label-hint">(one per line)</span></label>
+          <textarea id="cfg-exclude" rows="2" placeholder="e.g. Drosophila melanogaster"></textarea>
+        </div>
+      </div>
+
+      <div class="config-card">
+        <h2>Databases</h2>
+        <div class="db-group">
+          <div class="db-group-label">Academic &amp; preprint</div>
+          <div class="chip-row" id="chips-academic">
+            <label class="chip"><input type="checkbox" value="semanticscholar" checked> Semantic Scholar</label>
+            <label class="chip"><input type="checkbox" value="openalex" checked> OpenAlex</label>
+            <label class="chip"><input type="checkbox" value="europepmc" checked> Europe PMC</label>
+            <label class="chip"><input type="checkbox" value="crossref" checked> Crossref</label>
+            <label class="chip"><input type="checkbox" value="unpaywall" checked> Unpaywall</label>
+            <label class="chip"><input type="checkbox" value="base"> BASE</label>
+            <label class="chip"><input type="checkbox" value="zenodo"> Zenodo</label>
+          </div>
+        </div>
+        <div class="db-group">
+          <div class="db-group-label">Government &amp; extension</div>
+          <div class="chip-row" id="chips-gov">
+            <label class="chip"><input type="checkbox" value="eppo" checked> EPPO Global DB</label>
+            <label class="chip"><input type="checkbox" value="cabi" checked> CABI</label>
+            <label class="chip"><input type="checkbox" value="usda" checked> USDA / NAL</label>
+            <label class="chip"><input type="checkbox" value="jki"> JKI Germany</label>
+            <label class="chip"><input type="checkbox" value="naro"> NARO Japan</label>
+            <label class="chip"><input type="checkbox" value="caas"> CAAS China</label>
+            <label class="chip"><input type="checkbox" value="rda"> RDA Korea</label>
+          </div>
+        </div>
+        <div class="db-group">
+          <div class="db-group-label">Biodiversity &amp; occurrence</div>
+          <div class="chip-row" id="chips-bio">
+            <label class="chip"><input type="checkbox" value="gbif" checked> GBIF</label>
+            <label class="chip"><input type="checkbox" value="inat" checked> iNaturalist</label>
+            <label class="chip"><input type="checkbox" value="bold"> BOLD</label>
+            <label class="chip"><input type="checkbox" value="ncbi"> NCBI</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="config-card">
+        <h2>Filters &amp; scope</h2>
+        <div class="field-row">
+          <div class="field field-sm"><label for="cfg-yr-from">Year from</label><input type="number" id="cfg-yr-from" value="1900" min="1800" max="2030" /></div>
+          <div class="field field-sm"><label for="cfg-yr-to">Year to</label><input type="number" id="cfg-yr-to" value="2025" min="1900" max="2030" /></div>
+          <div class="field field-sm"><label for="cfg-max">Max / query</label><input type="number" id="cfg-max" value="500" min="10" max="5000" /></div>
+        </div>
+        <div class="field">
+          <label for="cfg-langs">Languages <span class="label-hint">(ISO 639-1, comma-separated)</span></label>
+          <input type="text" id="cfg-langs" value="en,de,fr,it,es,pt,ja,zh,ko,nl,pl,cs,hr,tr,ro,hu,sl,sr" />
+        </div>
+        <div class="field">
+          <label for="cfg-geo-req">Geography requirement</label>
+          <select id="cfg-geo-req">
+            <option value="0">None &mdash; include all, extract from full text</option>
+            <option value="1">Soft &mdash; prefer geo mentions, do not exclude</option>
+            <option value="2">Strict &mdash; title/abstract must mention location</option>
+          </select>
+        </div>
+        <div class="field">
+          <div class="field-label">Content scope</div>
+          <div class="chip-row" id="chips-scope">
+            <label class="chip"><input type="checkbox" value="first_record" checked> First records</label>
+            <label class="chip"><input type="checkbox" value="monitoring" checked> Monitoring</label>
+            <label class="chip"><input type="checkbox" value="distribution" checked> Distribution</label>
+            <label class="chip"><input type="checkbox" value="lab_strain" checked> Lab colony origin</label>
+            <label class="chip"><input type="checkbox" value="host_plant" checked> Host plant surveys</label>
+            <label class="chip"><input type="checkbox" value="experimental" checked> Experimental</label>
+            <label class="chip"><input type="checkbox" value="review" checked> Reviews</label>
+            <label class="chip"><input type="checkbox" value="modelling" checked> SDM / modelling</label>
+            <label class="chip"><input type="checkbox" value="theses" checked> Theses</label>
+            <label class="chip"><input type="checkbox" value="grey" checked> Grey literature</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="config-card config-actions">
+        <button class="btn btn-primary" id="btn-start-from-config">Start search &rarr;</button>
+        <button class="btn btn-ghost" id="btn-reset-config">Reset defaults</button>
+        <div class="action-hint">Parameters can be adjusted mid-run on the Run tab.</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- RUN -->
+  <section class="tab-panel" id="panel-run">
+    <div class="panel-title">
+      <h1>Search engine</h1>
+      <p>Live progress across all configured databases. Inject new terms or adjust filters without restarting.</p>
+    </div>
+    <div class="run-layout">
+      <div class="run-main">
+        <div class="run-card">
+          <div class="run-header">
+            <div id="run-status-label" class="run-status idle">Idle</div>
+            <div class="run-btns">
+              <button class="btn btn-ghost" id="btn-stop" disabled>Stop</button>
+              <button class="btn btn-primary" id="btn-run">Run search &rarr;</button>
+            </div>
+          </div>
+          <div class="progress-track"><div class="progress-fill" id="prog-fill"></div></div>
+          <div class="progress-meta"><span id="prog-label">Not started</span><span id="prog-pct">0%</span></div>
+          <div class="log-box" id="log-box" role="log" aria-live="polite" aria-label="Search log"></div>
+        </div>
+        <div class="run-card">
+          <h2>Live statistics</h2>
+          <div class="stats-row">
+            <div class="stat-cell"><div class="stat-n" id="s-queries">0</div><div class="stat-l">Queries sent</div></div>
+            <div class="stat-cell"><div class="stat-n" id="s-raw">0</div><div class="stat-l">Raw hits</div></div>
+            <div class="stat-cell"><div class="stat-n" id="s-dedup">0</div><div class="stat-l">After dedup</div></div>
+            <div class="stat-cell"><div class="stat-n" id="s-records">0</div><div class="stat-l">Location rows</div></div>
+            <div class="stat-cell"><div class="stat-n" id="s-noloc">0</div><div class="stat-l">No location</div></div>
+            <div class="stat-cell err"><div class="stat-n" id="s-errors">0</div><div class="stat-l">Errors</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="run-sidebar">
+        <div class="run-card">
+          <h2>Adjust mid-run</h2>
+          <div class="field">
+            <label for="mid-term">Inject search term</label>
+            <div class="input-row">
+              <input type="text" id="mid-term" placeholder="e.g. cherry fly Japan 2008" />
+              <button class="btn btn-sm" id="btn-add-term">Add</button>
+            </div>
+          </div>
+          <div id="mid-term-list" class="chip-row" style="margin-top:6px"></div>
+          <div class="field">
+            <label>Extend year range</label>
+            <div class="input-row">
+              <input type="number" id="mid-yr-from" placeholder="from" />
+              <input type="number" id="mid-yr-to" placeholder="to" />
+              <button class="btn btn-sm" id="btn-apply-yr">Apply</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Add database</label>
+            <div class="input-row">
+              <select id="mid-db-select">
+                <option value="">&mdash; pick &mdash;</option>
+                <option value="base">BASE</option>
+                <option value="zenodo">Zenodo</option>
+                <option value="naro">NARO Japan</option>
+                <option value="caas">CAAS China</option>
+                <option value="rda">RDA Korea</option>
+                <option value="bold">BOLD</option>
+                <option value="ncbi">NCBI</option>
+              </select>
+              <button class="btn btn-sm" id="btn-add-db">Queue</button>
+            </div>
+          </div>
+        </div>
+        <div class="run-card">
+          <h2>Category breakdown</h2>
+          <div class="cat-breakdown">
+            <div class="cat-row"><span class="cat-pill cat-a">A</span><span>Primary records</span><span class="cat-n" id="cat-a">0</span></div>
+            <div class="cat-row"><span class="cat-pill cat-b">B</span><span>Sampling locations</span><span class="cat-n" id="cat-b">0</span></div>
+            <div class="cat-row"><span class="cat-pill cat-c">C</span><span>Lab strain origin</span><span class="cat-n" id="cat-c">0</span></div>
+            <div class="cat-row"><span class="cat-pill cat-d">D</span><span>Reviews / models</span><span class="cat-n" id="cat-d">0</span></div>
+            <div class="cat-row"><span class="cat-pill cat-e">E</span><span>No location</span><span class="cat-n" id="cat-e">0</span></div>
+            <div class="cat-row"><span class="cat-pill cat-f">F</span><span>Pre-1980</span><span class="cat-n" id="cat-f">0</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULTS -->
+  <section class="tab-panel" id="panel-results">
+    <div class="panel-title">
+      <h1>Results</h1>
+      <p>One row per source-location combination. Filter by category, verification status, or any field.</p>
+    </div>
+    <div class="results-toolbar">
+      <div class="cat-filter-row">
+        <button class="cat-filter-btn active" data-cat="all">All</button>
+        <button class="cat-filter-btn" data-cat="A"><span class="cat-pill cat-a">A</span> Primary</button>
+        <button class="cat-filter-btn" data-cat="B"><span class="cat-pill cat-b">B</span> Sampling</button>
+        <button class="cat-filter-btn" data-cat="C"><span class="cat-pill cat-c">C</span> Lab strain</button>
+        <button class="cat-filter-btn" data-cat="D"><span class="cat-pill cat-d">D</span> Review/model</button>
+        <button class="cat-filter-btn" data-cat="E"><span class="cat-pill cat-e">E</span> No location</button>
+        <button class="cat-filter-btn" data-cat="F"><span class="cat-pill cat-f">F</span> Pre-1980</button>
+      </div>
+      <div class="search-filter-row">
+        <input type="text" id="res-search" placeholder="Filter by country, region, host, author, language&hellip;" />
+        <select id="res-verif">
+          <option value="">All verification statuses</option>
+          <option>Verified</option>
+          <option>Partly verified</option>
+          <option>Needs manual check</option>
+          <option>Secondary citation only</option>
+          <option>No usable location</option>
+        </select>
+        <select id="res-sort">
+          <option value="year_desc">Year &darr;</option>
+          <option value="year_asc">Year &uarr;</option>
+          <option value="country_asc">Country A&ndash;Z</option>
+          <option value="verif">Verification</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="results-table" id="results-table">
+        <thead>
+          <tr>
+            <th>Cat.</th><th>Year</th><th>Authors / source</th><th>Country</th>
+            <th>Region</th><th>Locality</th><th>Sampling yr</th><th>Host plant</th>
+            <th>Evidence</th><th>Verification</th><th>DOI / URL</th>
+          </tr>
+        </thead>
+        <tbody id="results-tbody">
+          <tr class="empty-row"><td colspan="11">Run a search to see results here.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="table-footer" id="table-footer"></div>
+    <div class="missing-sources-section">
+      <h2>Likely missing or hard-to-access sources</h2>
+      <div id="missing-list" class="missing-list"></div>
+    </div>
+  </section>
+
+  <!-- EXPORT -->
+  <section class="tab-panel" id="panel-export">
+    <div class="panel-title">
+      <h1>Export</h1>
+      <p>Download structured data in multiple formats. All categories are preserved separately.</p>
+    </div>
+    <div class="export-grid">
+      <div class="export-card"><div class="export-icon">&#x2B07;</div><div class="export-name">CSV &mdash; all records</div><div class="export-desc">All six categories. Best for Excel and GIS.</div><button class="btn btn-primary" onclick="SWDExport.csv('all')">Download CSV</button></div>
+      <div class="export-card export-featured"><div class="export-icon">&#x2B07;</div><div class="export-name">CSV &mdash; primary only</div><div class="export-desc">Category A: verified original collection records only.</div><button class="btn btn-primary" onclick="SWDExport.csv('A')">Download A-only CSV</button></div>
+      <div class="export-card"><div class="export-icon">{}</div><div class="export-name">JSON</div><div class="export-desc">Full structured records for programmatic use.</div><button class="btn btn-ghost" onclick="SWDExport.json()">Download JSON</button></div>
+      <div class="export-card"><div class="export-icon">@</div><div class="export-name">BibTeX</div><div class="export-desc">All citations for Zotero, Mendeley, etc.</div><button class="btn btn-ghost" onclick="SWDExport.bibtex()">Download .bib</button></div>
+      <div class="export-card"><div class="export-icon">&#x2B07;</div><div class="export-name">GeoJSON</div><div class="export-desc">Records with coordinates. Open directly in QGIS or Leaflet.</div><button class="btn btn-ghost" onclick="SWDExport.geojson()">Download GeoJSON</button></div>
+      <div class="export-card"><div class="export-icon">&#x2B07;</div><div class="export-name">Missing sources</div><div class="export-desc">Hard-to-access sources checklist for manual follow-up.</div><button class="btn btn-ghost" onclick="SWDExport.missing()">Download TXT</button></div>
+    </div>
+    <div class="schema-section">
+      <h2>Column schema</h2>
+      <table class="schema-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody id="schema-tbody"></tbody></table>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section class="tab-panel" id="panel-about">
+    <div class="panel-title"><h1>About SWD Search</h1></div>
+    <div class="about-layout">
+      <div class="about-main">
+        <div class="about-section">
+          <h2>Purpose</h2>
+          <p>SWD Search is an open-source tool for systematically collecting and structuring global occurrence, distribution, and strain-origin records of <em>Drosophila suzukii</em> (Matsumura, 1931) &mdash; the spotted wing drosophila. It queries heterogeneous sources in parallel, extracts location data, classifies evidence type, and exports to formats suitable for mapping, meta-analysis, and systematic review.</p>
+        </div>
+        <div class="about-section">
+          <h2>Search strategy</h2>
+          <p>Queries are broad and multilingual. Sources are not excluded because the title or abstract lacks geographic terms &mdash; all papers mentioning the species are captured and flagged for manual full-text review of methods sections, sampling site descriptions, and supplementary materials.</p>
+          <p>Laboratory and experimental studies are included if they report the geographic origin of fly strains or colonies. One row is created per source-location combination, so a single paper reporting multiple sites produces multiple rows.</p>
+        </div>
+        <div class="about-section">
+          <h2>Output categories</h2>
+          <dl class="cat-dl">
+            <dt><span class="cat-pill cat-a">A</span> Primary location records</dt><dd>Original collection, trapping, detection, sequencing, or monitoring.</dd>
+            <dt><span class="cat-pill cat-b">B</span> Useful sampling locations</dt><dd>Not first records, but additional confirmed presence sites.</dd>
+            <dt><span class="cat-pill cat-c">C</span> Lab / experimental strain origin</dt><dd>Geographic origin of laboratory colonies or field material used in experiments.</dd>
+            <dt><span class="cat-pill cat-d">D</span> Modelling / review</dt><dd>Secondary geographic information from models and review papers.</dd>
+            <dt><span class="cat-pill cat-e">E</span> No usable location</dt><dd>Mentions <em>D. suzukii</em> but contains no extractable location data.</dd>
+            <dt><span class="cat-pill cat-f">F</span> Pre-1980 historical records</dt><dd>Historical and native-range records from before 1980.</dd>
+          </dl>
+        </div>
+        <div class="about-section">
+          <h2>APIs used</h2>
+          <p>All APIs are public and free: Semantic Scholar, OpenAlex, Europe PMC, Crossref, GBIF, iNaturalist, Zenodo. Rate limits are respected automatically via built-in delays. Institutional databases (EPPO, CABI, USDA, NARO, CAAS, RDA) are stubbed &mdash; see <code>js/engines.js</code> to add real connectors.</p>
+        </div>
+      </div>
+      <div class="about-side">
+        <div class="about-links">
+          <h3>Resources</h3>
+          <a href="https://www.gbif.org/species/1455379" target="_blank" rel="noopener">GBIF species page &rarr;</a>
+          <a href="https://api.semanticscholar.org/graph/v1" target="_blank" rel="noopener">Semantic Scholar API &rarr;</a>
+          <a href="https://api.openalex.org" target="_blank" rel="noopener">OpenAlex API &rarr;</a>
+          <a href="https://www.ebi.ac.uk/europepmc/webservices/rest/search" target="_blank" rel="noopener">Europe PMC API &rarr;</a>
+          <a href="https://api.gbif.org/v1/occurrence/search" target="_blank" rel="noopener">GBIF Occurrence API &rarr;</a>
+        </div>
+        <div class="about-links">
+          <h3>Source</h3>
+          <a href="https://github.com/mehregan59/Sc_wide_Search" target="_blank" rel="noopener">GitHub repository &rarr;</a>
+          <a href="https://mehregan59.github.io/Sc_wide_Search" target="_blank" rel="noopener">Live app &rarr;</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script src="js/config.js"></script>
+<script src="js/engines.js"></script>
+<script src="js/extractor.js"></script>
+<script src="js/export.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
