@@ -9,32 +9,72 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet" />
   <style>
-    .paywall-toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:1rem; }
-    .paywall-toolbar input { flex:1; min-width:200px; }
-    .paywall-count { font-size:12px; font-family:var(--mono); color:var(--ink-3); white-space:nowrap; }
-    .paywall-actions-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:1.25rem; }
-    .paywall-list { display:flex; flex-direction:column; gap:0; }
-    .paywall-row { display:flex; gap:12px; padding:14px 16px; border:1px solid var(--border); border-top:none; background:var(--surface); }
-    .paywall-row:first-child { border-top:1px solid var(--border); border-radius:var(--radius) var(--radius) 0 0; }
-    .paywall-row:last-child  { border-radius:0 0 var(--radius) var(--radius); }
-    .paywall-row:only-child  { border-radius:var(--radius); border-top:1px solid var(--border); }
-    .paywall-row:hover { background:var(--paper); }
-    .paywall-index { font-family:var(--mono); font-size:12px; color:var(--ink-3); min-width:28px; padding-top:2px; }
-    .paywall-body  { flex:1; min-width:0; }
-    .paywall-title { font-size:13.5px; font-weight:500; color:var(--ink); margin-bottom:4px; line-height:1.45; }
-    .paywall-meta  { font-size:12px; color:var(--ink-3); margin-bottom:8px; }
-    .paywall-doi   { display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
-    .doi-code { font-family:var(--mono); font-size:12px; color:var(--accent); background:var(--paper); border:1px solid var(--border); padding:3px 8px; border-radius:var(--radius); transition:background .25s; cursor:text; user-select:all; }
-    .paywall-copy { font-size:11px; padding:3px 10px; }
-    .paywall-actions { display:flex; gap:10px; flex-wrap:wrap; }
-    .paywall-action-link { font-size:12px; color:var(--accent); text-decoration:none; padding:2px 0; border-bottom:1px solid transparent; }
-    .paywall-action-link:hover { border-bottom-color:var(--accent); }
-    .paywall-empty { padding:3rem; text-align:center; font-size:13px; color:var(--ink-3); }
-    .paywall-info-box { background:var(--accent-lt); border:1px solid var(--accent); border-radius:var(--radius-lg); padding:1rem 1.25rem; margin-bottom:1.25rem; font-size:13px; color:var(--ink-2); line-height:1.7; }
-    .paywall-info-box strong { color:var(--ink); font-weight:600; }
+    /* Paywalled panel */
+    .paywall-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:1rem}
+    .paywall-toolbar input{flex:1;min-width:200px}
+    .paywall-count{font-size:12px;font-family:var(--mono);color:var(--ink-3);white-space:nowrap}
+    .paywall-actions-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem}
+    .paywall-list{display:flex;flex-direction:column;gap:0}
+    .paywall-row{display:flex;gap:12px;padding:14px 16px;border:1px solid var(--border);border-top:none;background:var(--surface)}
+    .paywall-row:first-child{border-top:1px solid var(--border);border-radius:var(--radius) var(--radius) 0 0}
+    .paywall-row:last-child{border-radius:0 0 var(--radius) var(--radius)}
+    .paywall-row:only-child{border-radius:var(--radius);border-top:1px solid var(--border)}
+    .paywall-row:hover{background:var(--paper)}
+    .paywall-index{font-family:var(--mono);font-size:12px;color:var(--ink-3);min-width:28px;padding-top:2px}
+    .paywall-body{flex:1;min-width:0}
+    .paywall-title{font-size:13.5px;font-weight:500;color:var(--ink);margin-bottom:4px;line-height:1.45}
+    .paywall-meta{font-size:12px;color:var(--ink-3);margin-bottom:8px}
+    .paywall-doi{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+    .doi-code{font-family:var(--mono);font-size:12px;color:var(--accent);background:var(--paper);border:1px solid var(--border);padding:3px 8px;border-radius:var(--radius);transition:background .25s;cursor:text;user-select:all}
+    .paywall-copy{font-size:11px;padding:3px 10px}
+    .paywall-actions{display:flex;gap:10px;flex-wrap:wrap}
+    .paywall-action-link{font-size:12px;color:var(--accent);text-decoration:none;padding:2px 0;border-bottom:1px solid transparent}
+    .paywall-action-link:hover{border-bottom-color:var(--accent)}
+    .paywall-empty{padding:3rem;text-align:center;font-size:13px;color:var(--ink-3)}
+    .paywall-info-box{background:var(--accent-lt);border:1px solid var(--accent);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin-bottom:1.25rem;font-size:13px;color:var(--ink-2);line-height:1.7}
+    .paywall-info-box strong{color:var(--ink);font-weight:600}
+
+    /* Schema editor */
+    .schema-editor-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface);margin-bottom:1.5rem}
+    .schema-editor-table{width:100%;border-collapse:collapse;font-size:12.5px}
+    .schema-editor-table th{padding:9px 12px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);background:var(--paper);border-bottom:1px solid var(--border);white-space:nowrap}
+    .schema-editor-table td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+    .schema-editor-table tr:last-child td{border-bottom:none}
+    .schema-editor-table tr.schema-row-disabled td{opacity:.45}
+    .schema-toggle input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
+    .schema-label-input{width:160px;padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--paper);color:var(--ink)}
+    .schema-label-input:focus{outline:none;border-color:var(--accent)}
+    .schema-kw-btn{font-size:11px;padding:3px 10px;white-space:nowrap}
+    .schema-add-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1.5rem}
+    .schema-add-section h3{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);margin-bottom:1rem}
+    .schema-add-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+    .schema-actions-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.5rem}
+    .schema-info{background:var(--blue-lt);border:1px solid #b0c4de;border-radius:var(--radius-lg);padding:1rem 1.25rem;font-size:13px;color:var(--ink-2);line-height:1.7;margin-bottom:1.5rem}
+    .schema-info strong{color:var(--ink)}
+
+    /* Keyword modal */
+    .kw-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center}
+    .kw-modal-box{background:var(--surface);border-radius:var(--radius-lg);padding:1.5rem;width:480px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+    .kw-modal-box h3{font-size:14px;font-weight:600;margin-bottom:.75rem;color:var(--ink)}
+    .kw-modal-hint{font-size:12px;color:var(--ink-3);margin-bottom:.5rem}
+    .kw-modal-ta{width:100%;height:220px;font-family:var(--mono);font-size:12px;padding:8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--paper);color:var(--ink);resize:vertical}
+    .kw-modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:1rem}
   </style>
 </head>
 <body>
+
+<!-- Keyword edit modal -->
+<div class="kw-modal" id="kw-modal" role="dialog" aria-modal="true">
+  <div class="kw-modal-box">
+    <h3 id="kw-modal-title">Edit keywords</h3>
+    <div class="kw-modal-hint">One keyword or phrase per line. The extractor scans title + abstract for any match (case-insensitive, whole-word).</div>
+    <textarea class="kw-modal-ta" id="kw-modal-ta"></textarea>
+    <div class="kw-modal-footer">
+      <button class="btn btn-ghost" id="kw-modal-cancel">Cancel</button>
+      <button class="btn btn-primary" id="kw-modal-save">Save keywords</button>
+    </div>
+  </div>
+</div>
 
 <header class="app-header">
   <div class="header-inner">
@@ -47,6 +87,7 @@
     </div>
     <nav class="header-nav">
       <button class="nav-tab active" data-tab="config">Configure</button>
+      <button class="nav-tab" data-tab="schema">Schema</button>
       <button class="nav-tab" data-tab="run">Run</button>
       <button class="nav-tab" data-tab="results">Results <span class="nav-badge" id="badge-results" hidden>0</span></button>
       <button class="nav-tab" data-tab="paywall">Paywalled DOIs <span class="nav-badge" id="badge-paywall" hidden>0</span></button>
@@ -62,7 +103,7 @@
   <section class="tab-panel active" id="panel-config">
     <div class="panel-title">
       <h1>Search configuration</h1>
-      <p>Set terms, databases, and filters before running. All parameters can be adjusted mid-run.</p>
+      <p>Set terms, databases, and filters. All parameters can be adjusted mid-run. Use the <strong>Schema</strong> tab to customise output fields.</p>
     </div>
     <div class="config-grid">
       <div class="config-card">
@@ -178,11 +219,66 @@ Drosophile a ailes tachetees
     </div>
   </section>
 
+  <!-- SCHEMA EDITOR -->
+  <section class="tab-panel" id="panel-schema">
+    <div class="panel-title">
+      <h1>Schema editor</h1>
+      <p>Control which fields appear in the results table and all exports. Rename columns, edit extraction keywords, or add entirely new custom fields.</p>
+    </div>
+
+    <div class="schema-info">
+      <strong>How it works:</strong> every enabled field appears as a column in the Results table and as a header in CSV/JSON exports. Fields with keywords are auto-extracted from each paper's title and abstract. You can edit those keyword lists, disable fields you don't need, rename columns to match your own terminology, or add custom fields with your own keyword lists.<br>
+      Changes take effect immediately — re-run a search to apply keyword changes to new results.
+    </div>
+
+    <div class="schema-actions-bar">
+      <button class="btn btn-ghost" onclick="SWDExportFn.schema()">Download schema (.json) &darr;</button>
+      <button class="btn btn-ghost" onclick="SWDSchema.loadJSON()">Load schema from file &uarr;</button>
+    </div>
+
+    <div class="schema-editor-wrap">
+      <table class="schema-editor-table">
+        <thead>
+          <tr>
+            <th>On</th>
+            <th>Field key</th>
+            <th>Column label</th>
+            <th>Type</th>
+            <th>Keywords</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="schema-editor-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="schema-add-section">
+      <h3>Add custom field</h3>
+      <div class="schema-add-grid">
+        <div class="field">
+          <label for="new-field-name">Field key <span class="label-hint">(lowercase, no spaces)</span></label>
+          <input type="text" id="new-field-name" placeholder="e.g. trap_type" />
+        </div>
+        <div class="field">
+          <label for="new-field-label">Column label</label>
+          <input type="text" id="new-field-label" placeholder="e.g. Trap type used" />
+        </div>
+        <div class="field" style="grid-column:1/-1">
+          <label for="new-field-kw">Keywords to extract <span class="label-hint">(one per line — the extractor searches title+abstract for these)</span></label>
+          <textarea id="new-field-kw" rows="4" placeholder="e.g. McPhail trap&#10;Rebell trap&#10;Droso-Trap&#10;sticky trap&#10;yellow panel"></textarea>
+        </div>
+      </div>
+      <div style="margin-top:.75rem">
+        <button class="btn btn-primary" id="btn-add-custom-field">Add field &rarr;</button>
+      </div>
+    </div>
+  </section>
+
   <!-- RUN -->
   <section class="tab-panel" id="panel-run">
     <div class="panel-title">
       <h1>Search engine</h1>
-      <p>Live progress across all configured databases.</p>
+      <p>Live progress across all configured databases. Inject new terms or adjust filters without restarting.</p>
     </div>
     <div class="run-layout">
       <div class="run-main">
@@ -265,7 +361,7 @@ Drosophile a ailes tachetees
   <section class="tab-panel" id="panel-results">
     <div class="panel-title">
       <h1>Results</h1>
-      <p>One row per source-location combination.</p>
+      <p>Columns reflect your active schema. Use the <strong>Schema</strong> tab to show, hide, or rename any field.</p>
     </div>
     <div class="results-toolbar">
       <div class="cat-filter-row">
@@ -278,7 +374,7 @@ Drosophile a ailes tachetees
         <button class="cat-filter-btn" data-cat="F"><span class="cat-pill cat-f">F</span> Pre-1980</button>
       </div>
       <div class="search-filter-row">
-        <input type="text" id="res-search" placeholder="Filter by country, region, host, author&hellip;" />
+        <input type="text" id="res-search" placeholder="Filter any visible field&hellip;" />
         <select id="res-verif">
           <option value="">All verification statuses</option>
           <option>Verified</option>
@@ -297,11 +393,9 @@ Drosophile a ailes tachetees
     </div>
     <div class="table-wrap">
       <table class="results-table">
-        <thead>
-          <tr><th>Cat.</th><th>Year</th><th>Authors</th><th>Country</th><th>Region</th><th>Locality</th><th>Sampling yr</th><th>Host plant</th><th>Evidence</th><th>Verification</th><th>DOI / URL</th></tr>
-        </thead>
+        <thead id="results-thead"><tr><th>Run a search to populate columns.</th></tr></thead>
         <tbody id="results-tbody">
-          <tr class="empty-row"><td colspan="11">Run a search to see results here.</td></tr>
+          <tr class="empty-row"><td colspan="1">Run a search to see results here.</td></tr>
         </tbody>
       </table>
     </div>
@@ -320,9 +414,9 @@ Drosophile a ailes tachetees
     </div>
     <div class="paywall-info-box">
       <strong>How to get these papers legally:</strong><br>
-      1. <strong>Email the author</strong> &mdash; find them on Google Scholar or ResearchGate and ask. Authors almost always respond.<br>
+      1. <strong>Email the author</strong> &mdash; find on Google Scholar or ResearchGate. Authors almost always respond.<br>
       2. <strong>Interlibrary loan (ILL)</strong> &mdash; your university library, free, usually 24&ndash;48 hours.<br>
-      3. <strong>Unpaywall</strong> &mdash; click the Unpaywall link next to each DOI to check for a free legal version.<br>
+      3. <strong>Unpaywall</strong> &mdash; click the Unpaywall link to check for a legal free version automatically.<br>
       4. <strong>Europe PMC</strong> &mdash; checks for author manuscripts and preprints.
     </div>
     <div class="paywall-toolbar">
@@ -334,7 +428,7 @@ Drosophile a ailes tachetees
       <button class="btn btn-ghost" onclick="SWDExportFn.paywallCsv()">Download as CSV &darr;</button>
     </div>
     <div class="paywall-list" id="paywall-list">
-      <div class="paywall-empty">Run a search &mdash; paywalled papers will appear here automatically.</div>
+      <div class="paywall-empty">Run a search &mdash; paywalled papers appear here automatically.</div>
     </div>
   </section>
 
@@ -342,19 +436,19 @@ Drosophile a ailes tachetees
   <section class="tab-panel" id="panel-export">
     <div class="panel-title">
       <h1>Export</h1>
-      <p>Download structured data in multiple formats.</p>
+      <p>All exports reflect your active schema — only enabled fields are included, using your custom column labels.</p>
     </div>
     <div class="export-grid">
-      <div class="export-card"><div class="export-icon">&#x2B07;</div><div class="export-name">CSV &mdash; all records</div><div class="export-desc">All six categories. Best for Excel and GIS.</div><button class="btn btn-primary" onclick="SWDExportFn.csv('all')">Download CSV</button></div>
-      <div class="export-card export-featured"><div class="export-icon">&#x2B07;</div><div class="export-name">CSV &mdash; primary only</div><div class="export-desc">Category A: verified original collection records only.</div><button class="btn btn-primary" onclick="SWDExportFn.csv('A')">Download A-only CSV</button></div>
-      <div class="export-card"><div class="export-icon">{}</div><div class="export-name">JSON</div><div class="export-desc">Full structured records for programmatic use.</div><button class="btn btn-ghost" onclick="SWDExportFn.json()">Download JSON</button></div>
+      <div class="export-card"><div class="export-icon">&#x2B07;</div><div class="export-name">CSV &mdash; all records</div><div class="export-desc">All six categories. Column headers use your schema labels.</div><button class="btn btn-primary" onclick="SWDExportFn.csv('all')">Download CSV</button></div>
+      <div class="export-card export-featured"><div class="export-icon">&#x2B07;</div><div class="export-name">CSV &mdash; primary only</div><div class="export-desc">Category A verified records. Your active schema applies.</div><button class="btn btn-primary" onclick="SWDExportFn.csv('A')">Download A-only CSV</button></div>
+      <div class="export-card"><div class="export-icon">{}</div><div class="export-name">JSON</div><div class="export-desc">Full records including all fields (enabled and disabled).</div><button class="btn btn-ghost" onclick="SWDExportFn.json()">Download JSON</button></div>
       <div class="export-card"><div class="export-icon">@</div><div class="export-name">BibTeX</div><div class="export-desc">All citations for Zotero, Mendeley, etc.</div><button class="btn btn-ghost" onclick="SWDExportFn.bibtex()">Download .bib</button></div>
-      <div class="export-card"><div class="export-icon">&#x2B07;</div><div class="export-name">GeoJSON</div><div class="export-desc">Records with coordinates for QGIS or Leaflet.</div><button class="btn btn-ghost" onclick="SWDExportFn.geojson()">Download GeoJSON</button></div>
-      <div class="export-card"><div class="export-icon">&#x2B07;</div><div class="export-name">Missing sources</div><div class="export-desc">Hard-to-access sources checklist.</div><button class="btn btn-ghost" onclick="SWDExportFn.missing()">Download TXT</button></div>
+      <div class="export-card"><div class="export-icon">&#x2B07;</div><div class="export-name">GeoJSON</div><div class="export-desc">Records with coordinates. Properties use your schema labels.</div><button class="btn btn-ghost" onclick="SWDExportFn.geojson()">Download GeoJSON</button></div>
+      <div class="export-card"><div class="export-icon">&#x2B07;</div><div class="export-name">Schema (.json)</div><div class="export-desc">Export your current schema to reload later or share.</div><button class="btn btn-ghost" onclick="SWDExportFn.schema()">Download schema</button></div>
     </div>
     <div class="schema-section">
-      <h2>Column schema</h2>
-      <table class="schema-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody id="schema-tbody"></tbody></table>
+      <h2>Active schema preview</h2>
+      <table class="schema-table"><thead><tr><th>Field key</th><th>Type</th><th>Label &amp; description</th></tr></thead><tbody id="schema-tbody"></tbody></table>
     </div>
   </section>
 
@@ -368,19 +462,23 @@ Drosophile a ailes tachetees
           <p>SWD Search systematically collects and structures global occurrence, distribution, and strain-origin records of <em>Drosophila suzukii</em> (Matsumura, 1931). It queries heterogeneous sources in parallel, extracts location data, classifies evidence, and exports for mapping, meta-analysis, and systematic review.</p>
         </div>
         <div class="about-section">
+          <h2>Schema editor</h2>
+          <p>The Schema tab lets you control exactly what information is collected and how it appears. You can disable fields you don't need, rename columns to your preferred terminology, edit the keyword lists used for automatic extraction, and add entirely new custom fields. All exports — CSV, GeoJSON, and the schema JSON itself — update immediately to reflect your choices.</p>
+        </div>
+        <div class="about-section">
           <h2>Output categories</h2>
           <dl class="cat-dl">
             <dt><span class="cat-pill cat-a">A</span> Primary location records</dt><dd>Original collection, trapping, detection, sequencing, or monitoring.</dd>
             <dt><span class="cat-pill cat-b">B</span> Useful sampling locations</dt><dd>Confirmed presence but not first records.</dd>
             <dt><span class="cat-pill cat-c">C</span> Lab / experimental strain origin</dt><dd>Geographic origin of laboratory colonies or field material.</dd>
             <dt><span class="cat-pill cat-d">D</span> Modelling / review</dt><dd>Secondary geographic information from models and reviews.</dd>
-            <dt><span class="cat-pill cat-e">E</span> No usable location</dt><dd>Mentions <em>D. suzukii</em> but no extractable location.</dd>
+            <dt><span class="cat-pill cat-e">E</span> No usable location</dt><dd>Mentions the species but no extractable location.</dd>
             <dt><span class="cat-pill cat-f">F</span> Pre-1980 historical records</dt><dd>Historical and native-range records before 1980.</dd>
           </dl>
         </div>
         <div class="about-section">
           <h2>APIs used</h2>
-          <p>All APIs are public and free: OpenAlex, Europe PMC, Crossref, GBIF, iNaturalist, Zenodo. Institutional databases are stubbed — see <code>js/app.js</code> to add connectors.</p>
+          <p>All APIs are public and free: OpenAlex, Europe PMC, Crossref, GBIF, iNaturalist, Zenodo. Institutional databases (EPPO, CABI, USDA, NARO, CAAS, RDA) are stubbed &mdash; see <code>js/app.js</code> to add connectors.</p>
         </div>
       </div>
       <div class="about-side">
@@ -402,8 +500,6 @@ Drosophile a ailes tachetees
 
 </main>
 
-<!-- Single script tag — all logic is inside DOMContentLoaded in app.js -->
 <script src="js/app.js"></script>
-
 </body>
 </html>
