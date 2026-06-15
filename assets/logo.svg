@@ -1,0 +1,30 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img">
+<title>SciWide Search logo</title>
+<desc>A thin ring with a curled salamander body, head and two paws, flat violet fill with darker violet outline shapes layered behind for definition, and yellow spots.</desc>
+<circle cx="256" cy="256" r="238" stroke="#6b4a96" stroke-width="14" fill="none"/>
+<path d="M340,140 C240,95 140,130 122,225 C108,300 145,375 235,392" fill="none" stroke="#3d2856" stroke-width="78" stroke-linecap="round"/>
+<path d="M235,392 C320,408 388,360 388,290 C388,248 350,232 305,245" fill="none" stroke="#3d2856" stroke-width="54" stroke-linecap="round"/>
+<path d="M340,140 C240,95 140,130 122,225 C108,300 145,375 235,392" fill="none" stroke="#7e57a3" stroke-width="66" stroke-linecap="round"/>
+<path d="M235,392 C320,408 388,360 388,290 C388,248 350,232 305,245" fill="none" stroke="#7e57a3" stroke-width="44" stroke-linecap="round"/>
+<ellipse cx="235" cy="205" rx="30" ry="18" fill="#3d2856" transform="rotate(55 235 205)"/>
+<ellipse cx="285" cy="300" rx="30" ry="18" fill="#3d2856" transform="rotate(55 285 300)"/>
+<ellipse cx="235" cy="205" rx="24" ry="13" fill="#7e57a3" transform="rotate(55 235 205)"/>
+<ellipse cx="285" cy="300" rx="24" ry="13" fill="#7e57a3" transform="rotate(55 285 300)"/>
+<ellipse cx="345" cy="150" rx="64" ry="52" fill="#3d2856"/>
+<ellipse cx="345" cy="150" rx="56" ry="45" fill="#7e57a3"/>
+<circle cx="378" cy="138" r="8" fill="#2e1f42"/>
+<circle cx="374" cy="134" r="2.5" fill="#ffffff"/>
+<circle cx="400" cy="150" r="3" fill="#2e1f42"/>
+<g fill="#f5c430">
+<ellipse cx="288" cy="118" rx="16" ry="11" transform="rotate(-8 288 118)"/>
+<ellipse cx="212" cy="106" rx="14" ry="10" transform="rotate(10 212 106)"/>
+<ellipse cx="153" cy="160" rx="15" ry="11" transform="rotate(-15 153 160)"/>
+<ellipse cx="116" cy="232" rx="14" ry="10" transform="rotate(5 116 232)"/>
+<ellipse cx="121" cy="312" rx="15" ry="11" transform="rotate(-10 121 312)"/>
+<ellipse cx="176" cy="386" rx="14" ry="10" transform="rotate(12 176 386)"/>
+<ellipse cx="257" cy="421" rx="15" ry="11" transform="rotate(-8 257 421)"/>
+<ellipse cx="341" cy="396" rx="13" ry="9" transform="rotate(15 341 396)"/>
+<ellipse cx="391" cy="330" rx="12" ry="9" transform="rotate(-5 391 330)"/>
+<ellipse cx="367" cy="266" rx="11" ry="8" transform="rotate(10 367 266)"/>
+</g>
+</svg>

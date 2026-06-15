@@ -1,0 +1,55 @@
+{
+  "presetName": "Drosophila suzukii (Spotted Wing Drosophila)",
+  "description": "Global occurrence, distribution and strain-origin records of Drosophila suzukii (spotted wing drosophila).",
+  "version": 1,
+  "terms": {
+    "primary": [
+      "Drosophila suzukii",
+      "Sophophora suzukii",
+      "spotted wing drosophila",
+      "SWD",
+      "spotted wing fly",
+      "cherry vinegar fly"
+    ],
+    "synonyms": [
+      "Kirschessigfliege",
+      "mosca del ciliegio",
+      "mosca de alas manchadas",
+      "Drosophile a ailes tachetees",
+      "\u30ad\u30a4\u30ed\u30b7\u30e7\u30a6\u30b8\u30e7\u30a6\u30d0\u30a8",
+      "\u30b9\u30dd\u30c3\u30c8\u30c3\u30c9\u30a6\u30a3\u30f3\u30b0\u30c9\u30ed\u30bd\u30d5\u30a3\u30e9"
+    ],
+    "extra": [],
+    "exclude": []
+  },
+  "filters": {
+    "yearFrom": 1900,
+    "yearTo": 2025,
+    "maxPerQuery": 500,
+    "languages": "en,de,fr,it,es,pt,ja,zh,ko,nl,pl,cs,hr,tr,ro,hu,sl,sr",
+    "geoReq": 0
+  },
+  "databases": ["semanticscholar","openalex","europepmc","crossref","zenodo","gbif","inat"],
+  "scope": ["first_record","monitoring","distribution","lab_strain","host_plant","experimental","review","modelling","theses","grey"],
+  "missingSources": [
+    "Pre-1990 Japanese agricultural bulletins (NARO series)",
+    "Chinese provincial plant protection station annual reports (\u690d\u4fdd\u7ad9\u5e74\u62a5)",
+    "Korean RDA research bulletins on fruit flies (\ub2ec\ucca8\uacfc\uc77c \uc5f0\uad6c\ubcf4\uace0\uc11c)",
+    "Regional Italian \"Bollettino di Zoologia Agraria e di Bachicoltura\" older issues",
+    "FAO/IAEA technical reports on fruit fly control (grey literature)",
+    "Swiss Agroscope technical bulletins on Kirschessigfliege (2008-2012)",
+    "Austrian Laimburg Research Centre internal reports",
+    "Taiwanese BAPHIQ quarantine interception records",
+    "Slovenian and Croatian phytosanitary authority field reports",
+    "Canadian CFIA first-detection internal dossiers",
+    "Chilean SAG phytosanitary bulletins",
+    "IOBC-WPRS fruit fly working group conference proceedings",
+    "EPPO Panel on Phytosanitary Measures meeting minutes",
+    "Portuguese DGAV phytosanitary surveillance reports",
+    "Turkish GKGM plant protection directorate bulletins",
+    "Serbian and Hungarian agricultural extension first-detection reports",
+    "Older Taiwanese and South Korean university dissertations (pre-2005)",
+    "Regional French DRAAF annual phytosanitary reports"
+  ],
+  "schema": { "fields": [], "customFields": [] }
+}
