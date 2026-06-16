@@ -1,7 +1,7 @@
 {
   "presetName": "Drosophila suzukii (Spotted Wing Drosophila)",
-  "description": "Global occurrence, distribution and strain-origin records of Drosophila suzukii (spotted wing drosophila).",
   "version": 1,
+  "description": "Global occurrence, distribution, and strain-origin records for Drosophila suzukii (Matsumura, 1931). Covers primary detection records, monitoring data, lab colony origins, modelling studies, and grey literature across all major languages.",
   "terms": {
     "primary": [
       "Drosophila suzukii",
@@ -16,11 +16,11 @@
       "mosca del ciliegio",
       "mosca de alas manchadas",
       "Drosophile a ailes tachetees",
-      "\u30ad\u30a4\u30ed\u30b7\u30e7\u30a6\u30b8\u30e7\u30a6\u30d0\u30a8",
-      "\u30b9\u30dd\u30c3\u30c8\u30c3\u30c9\u30a6\u30a3\u30f3\u30b0\u30c9\u30ed\u30bd\u30d5\u30a3\u30e9"
+      "\u677e\u7edc\u679c\u8747",
+      "\u30ad\u30a4\u30ed\u30b7\u30e7\u30a6\u30b8\u30e7\u30a6\u30d0\u30a8"
     ],
     "extra": [],
-    "exclude": []
+    "exclude": ["Drosophila melanogaster"]
   },
   "filters": {
     "yearFrom": 1900,
@@ -34,10 +34,10 @@
   "missingSources": [
     "Pre-1990 Japanese agricultural bulletins (NARO series)",
     "Chinese provincial plant protection station annual reports (\u690d\u4fdd\u7ad9\u5e74\u62a5)",
-    "Korean RDA research bulletins on fruit flies (\ub2ec\ucca8\uacfc\uc77c \uc5f0\uad6c\ubcf4\uace0\uc11c)",
+    "Korean RDA research bulletins on fruit flies (\ub18d\ucd2c\uc9c4\ud765\uccad \uc5f0\uad6c\ubcf4\uace0\uc11c)",
     "Regional Italian \"Bollettino di Zoologia Agraria e di Bachicoltura\" older issues",
     "FAO/IAEA technical reports on fruit fly control (grey literature)",
-    "Swiss Agroscope technical bulletins on Kirschessigfliege (2008-2012)",
+    "Swiss Agroscope technical bulletins on Kirschessigfliege (2008\u20132012)",
     "Austrian Laimburg Research Centre internal reports",
     "Taiwanese BAPHIQ quarantine interception records",
     "Slovenian and Croatian phytosanitary authority field reports",
@@ -51,5 +51,8 @@
     "Older Taiwanese and South Korean university dissertations (pre-2005)",
     "Regional French DRAAF annual phytosanitary reports"
   ],
-  "schema": { "fields": [], "customFields": [] }
+  "schema": {
+    "fields": [],
+    "customFields": []
+  }
 }

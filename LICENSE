@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2025-2026 Mehregan Ebrahimi
+Copyright (c) 2025 Mehregan Ebrahimi
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20,37 +20,34 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-───────────────────────────────────────────────────────────────────────────────
+─────────────────────────────────────────────────────────────────────────────
 FUTURE LICENSING NOTICE
-───────────────────────────────────────────────────────────────────────────────
+─────────────────────────────────────────────────────────────────────────────
 
 This software is currently released under the MIT License (free, open source).
 
-The author reserves the right to release future versions of this software under
-a different license, including a commercial or proprietary license. Such a
-change will apply only to future versions and will never retroactively affect
-any version already released under the MIT License.
+The author reserves the right to release future versions of this software
+under a different license, including a commercial or proprietary license.
+Such a change will apply only to future versions and will never retroactively
+affect any version already released under the MIT License.
 
-If you wish to use a future commercial version in a product or service, or to
-obtain a commercial support agreement, contact:
+For future commercial licensing enquiries:
+  GitHub: https://github.com/mehregan59
+  Repo:   https://github.com/mehregan59/Sc_wide_Search
 
-  GitHub:   https://github.com/mehregan59
-  Repo:     https://github.com/mehregan59/Sc_wide_Search
-
-───────────────────────────────────────────────────────────────────────────────
+─────────────────────────────────────────────────────────────────────────────
 THIRD-PARTY API NOTICE
-───────────────────────────────────────────────────────────────────────────────
+─────────────────────────────────────────────────────────────────────────────
 
-This software queries the following third-party public APIs. Each is subject
-to its own terms of service, which users must independently comply with:
+This software queries the following third-party public APIs:
 
-  - Semantic Scholar  https://www.semanticscholar.org/product/api
-  - OpenAlex          https://openalex.org/about
-  - Europe PMC        https://europepmc.org/RestfulWebService
-  - Crossref          https://www.crossref.org/documentation/retrieve-metadata/rest-api/
-  - GBIF              https://www.gbif.org/terms
-  - iNaturalist       https://www.inaturalist.org/pages/terms
-  - Zenodo            https://zenodo.org/terms
+  OpenAlex          https://openalex.org/about
+  Europe PMC        https://europepmc.org/RestfulWebService
+  Crossref          https://www.crossref.org/documentation/retrieve-metadata/rest-api/
+  GBIF              https://www.gbif.org/terms
+  iNaturalist       https://www.inaturalist.org/pages/terms
+  Zenodo            https://zenodo.org/terms
 
-The author of this software makes no representations about the availability,
-accuracy, or completeness of data returned by these services.
+Each service is subject to its own terms of use. Users must comply with those
+terms independently. The author makes no representations about the accuracy,
+availability, or completeness of data returned by these services.

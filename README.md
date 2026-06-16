@@ -1,42 +1,57 @@
 # SciWide Search
 
-A free, open-source tool for systematic literature and occurrence-record searches across multiple academic, preprint and biodiversity databases — running entirely in your browser, no backend, no API keys.
+**A free, open-source systematic literature and occurrence search tool.**
 
-**Live app:** https://mehregan59.github.io/Sc_wide_Search
+SciWide Search queries multiple academic, biodiversity, and grey-literature databases in parallel, extracts structured fields from results, and exports everything in formats suitable for systematic reviews, meta-analyses, and distribution mapping.
 
-## What it does
+🔗 **Live app:** https://mehregan59.github.io/Sc_wide_Search
 
-- Searches several free, CORS-friendly APIs in parallel: OpenAlex, Europe PMC, Crossref, Zenodo, GBIF, and iNaturalist. (Semantic Scholar is routed through OpenAlex, since Semantic Scholar's own API blocks browser requests.)
-- Extracts country, region, host/subject, evidence type and more from each result's title and abstract, using editable keyword lists.
-- Classifies every record into categories A–F (primary record, additional sampling location, strain/lab origin, modelling/review, no usable location, pre-1980 historical) and assigns a verification status — a useful starting point for PRISMA-style reporting.
-- Lets you customise exactly which fields are collected via the **Schema** tab: rename columns, toggle fields on or off, edit extraction keyword lists, or add entirely new custom fields.
-- Tracks every paywalled DOI found and gives one-click links to check Unpaywall, Europe PMC, Google Scholar, and your library's interlibrary-loan service.
-- Exports to CSV, JSON, BibTeX, and GeoJSON.
+---
 
-## Presets
+## Features
 
-Search terms, database selections, filters, schema customisations, and notes on known gaps can be saved as a single JSON **preset** file and reloaded later, or shared with anyone via a download link. Nothing is stored on a server — presets are just files. Anyone can save their own preset under a new name.
+- ✅ Search across OpenAlex, Europe PMC, Crossref, GBIF, iNaturalist, Zenodo (more planned)
+- ✅ Live schema editor — rename, toggle, or add any output field
+- ✅ Preset system — save and share full search configurations as JSON
+- ✅ Paywalled DOI panel with Unpaywall, Google Scholar, and Europe PMC links
+- ✅ Exports: CSV (schema-aware), JSON, BibTeX, GeoJSON, paywalled DOI list
+- ✅ Fully client-side — no server, no login, no data collected
+- ✅ Bundled example preset: *Drosophila suzukii* (Spotted Wing Drosophila)
 
-A bundled example preset for *Drosophila suzukii* (Spotted Wing Drosophila) lives under `presets/`. Load it from the Configure tab for a fully populated example, or start from the blank default and save your own preset.
+## Bundled Presets
 
-## Running it yourself
+| Preset | File |
+|--------|------|
+| *Drosophila suzukii* (Spotted Wing Drosophila) | `presets/drosophila_suzukii.json` |
 
-This is a static site — clone the repo and open `index.html`, or serve the folder with any static file server. No build step, no dependencies.
+Load any preset from the **Configure** tab → Presets panel.
 
-## Contributing
+## Usage
 
-New database connectors are welcome, provided the API is free and supports CORS from the browser without an API key. See the connector dispatcher in `js/app.js`.
+1. Open https://mehregan59.github.io/Sc_wide_Search
+2. Enter search terms (or load a preset)
+3. Select databases and filters
+4. Click **Run search**
+5. Export results from the **Export** tab
 
-## Creator & citation
+## Citation
 
-Created by **Mehregan Ebrahimi**.
+If you use SciWide Search in your research, please cite it as:
 
 > Ebrahimi, M. (2026). *SciWide Search* [Software]. https://github.com/mehregan59/Sc_wide_Search
 
+## Author
+
+**Mehregan Ebrahimi**
+👉 https://github.com/mehregan59
+
 ## Support
 
-SciWide Search is free and will stay that way. If it saved you time, consider a small donation via the **About** tab in the app — it helps cover the time spent maintaining it and adding new features.
+SciWide Search is free to use and will stay that way. If it saved you time, consider a small donation:
+
+👉 https://www.paypal.com/donate/?hosted_button_id=4AMEK5KTQHHR4
 
 ## License
 
-MIT, with a clause reserving the right to release future versions under a commercial license. See [LICENSE](LICENSE).
+MIT License — see [LICENSE](LICENSE).
+The author reserves the right to release future versions under a different license.
