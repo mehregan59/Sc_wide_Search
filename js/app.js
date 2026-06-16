@@ -1,96 +1,98 @@
 /**
- * SciWide Search — single-file bundle with live schema editor and presets
- * All modules inlined in dependency order inside DOMContentLoaded.
+ * SciWide Search — single-file bundle
+ * Phase 2: systematic review, screening states, PRISMA log,
+ *          RIS/EndNote export, arXiv, PubMed, bioRxiv connectors.
  */
 document.addEventListener('DOMContentLoaded', () => {
 
 // ═══════════════════════════════════════════════════════════════
-// HELPERS (top-level — usable by settings, presets, exports)
+// HELPERS
 // ═══════════════════════════════════════════════════════════════
 function lines(id){ const el=document.getElementById(id); return (el&&el.value||'').split('\n').map(s=>s.trim()).filter(Boolean); }
 function setLines(id,arr){ const el=document.getElementById(id); if(el) el.value=(arr||[]).join('\n'); }
 function checked(sel){ return [...document.querySelectorAll(sel)].filter(e=>e.checked).map(e=>e.value); }
 function setChecked(sel,values){ if(!Array.isArray(values))return; const set=new Set(values); document.querySelectorAll(sel).forEach(e=>{e.checked=set.has(e.value);}); }
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+const stamp=()=>new Date().toISOString().slice(0,10);
+function dlFile(content,name,mime){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['\uFEFF'+content],{type:mime}));
+  a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
 
 // ═══════════════════════════════════════════════════════════════
-// LIVE SCHEMA — user-editable, drives table + all exports
+// SCREENING STATE — per-record include/exclude/maybe + reason
 // ═══════════════════════════════════════════════════════════════
+const _screening=new Map();
+function screeningKey(r){ return (r.doi&&r.doi!=='not reported')?r.doi:(r.full_citation||'').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,80); }
+function getScreening(r){ return _screening.get(screeningKey(r))||{decision:'',reason:''}; }
+function setScreening(r,decision,reason){ _screening.set(screeningKey(r),{decision,reason:reason||''}); }
 
-// Each field: { field, label, type, desc, enabled, extractFrom, keywords }
-// extractFrom: 'country'|'region'|'host'|'evidence_type'|'evidence_class'|'custom'|null
-let LIVE_SCHEMA = [
-  { field:'full_citation',       label:'Full citation',        type:'string',  desc:'Full reference (APA)',                  enabled:true,  extractFrom:null },
-  { field:'pub_year',            label:'Publication year',     type:'integer', desc:'Year of publication',                   enabled:true,  extractFrom:null },
-  { field:'source_type',         label:'Source type',          type:'enum',    desc:'journal|thesis|report|conference|grey', enabled:true,  extractFrom:null },
-  { field:'language',            label:'Language',             type:'string',  desc:'ISO 639-1 code',                        enabled:true,  extractFrom:null },
-  { field:'country',             label:'Country',              type:'string',  desc:'Country of record origin',              enabled:true,  extractFrom:'country',
-    keywords:['Japan','China','Korea','Taiwan','United States','USA','Canada','Mexico','Germany','France','Italy','Spain','Portugal','Switzerland','Austria','Belgium','Netherlands','United Kingdom','UK','Poland','Czech Republic','Hungary','Slovenia','Croatia','Serbia','Romania','Bulgaria','Greece','Turkey','Chile','Brazil','Argentina','Uruguay','Colombia','Peru','Australia','New Zealand','South Africa','Morocco','Tunisia','Israel','India','Thailand','Vietnam','Malaysia','Indonesia','Philippines','Finland','Sweden','Norway','Denmark','Ireland','Scotland'] },
-  { field:'region',              label:'Region / state',       type:'string',  desc:'State, province, or region',            enabled:true,  extractFrom:'region',
-    keywords:['Baden-Württemberg','Bavaria','Rhineland','Saxony','Thuringia','Trentino','Alto Adige','Lombardy','Friuli','Veneto','Piedmont','Tuscany','Nagano','Yamanashi','Hokkaido','Aomori','California','Oregon','Washington','Michigan','British Columbia','Ontario','Quebec','Catalonia','Aragon','Navarra','Valencia','Andalusia','Occitanie','Provence','Alsace','Valais','Vaud','Ticino','Styria','Tyrol','Carinthia','Flanders','Wallonia','Silesia','Alentejo','Algarve'] },
-  { field:'locality',            label:'Locality / site',      type:'string',  desc:'Exact site name',                       enabled:true,  extractFrom:null },
-  { field:'coordinates',         label:'Coordinates',          type:'string',  desc:'Decimal lat/lon',                       enabled:true,  extractFrom:null },
-  { field:'sampling_year',       label:'Sampling year',        type:'string',  desc:'Year of collection',                    enabled:true,  extractFrom:null },
-  { field:'host_plant',          label:'Host plant / crop',    type:'string',  desc:'Host plant if stated',                  enabled:true,  extractFrom:'host',
-    keywords:['Prunus avium','Prunus cerasus','sweet cherry','sour cherry','cherry','Vaccinium corymbosum','Vaccinium myrtillus','blueberry','bilberry','Rubus idaeus','Rubus fruticosus','raspberry','blackberry','Fragaria','strawberry','Sambucus nigra','elderberry','Vitis vinifera','grape','Prunus persica','peach','nectarine','Ficus carica','fig','Rosa','Lonicera','Actinidia','kiwi','Morus','mulberry'] },
-  { field:'study_context',       label:'Study context',        type:'string',  desc:'Brief study type description',          enabled:true,  extractFrom:null },
-  { field:'evidence_type',       label:'Evidence type',        type:'enum',    desc:'trap|morphology|DNA|observation|model', enabled:true,  extractFrom:'evidence_type' },
-  { field:'evidence_class',      label:'Evidence class',       type:'enum',    desc:'primary|secondary|modelled|...',        enabled:true,  extractFrom:'evidence_class' },
-  { field:'category',            label:'Category',             type:'enum',    desc:'A|B|C|D|E|F',                           enabled:true,  extractFrom:null },
-  { field:'excerpt',             label:'Excerpt',              type:'string',  desc:'Sentence mentioning location',          enabled:true,  extractFrom:null },
-  { field:'doi',                 label:'DOI',                  type:'string',  desc:'DOI or "not reported"',                 enabled:true,  extractFrom:null },
-  { field:'url',                 label:'URL',                  type:'string',  desc:'Access URL',                            enabled:true,  extractFrom:null },
-  { field:'pdf_available',       label:'PDF available',        type:'enum',    desc:'yes|no|paywalled|unknown',              enabled:true,  extractFrom:null },
-  { field:'verification_status', label:'Verification',         type:'enum',    desc:'Verified|Partly verified|...',          enabled:true,  extractFrom:null },
-  { field:'notes',               label:'Notes',                type:'string',  desc:'Caveats and flags',                     enabled:true,  extractFrom:null },
-  { field:'source_db',           label:'Source database',      type:'string',  desc:'Database where record was found',       enabled:true,  extractFrom:null },
+// ═══════════════════════════════════════════════════════════════
+// PRISMA SEARCH LOG
+// ═══════════════════════════════════════════════════════════════
+const _searchLog=[];
+function logSearch(db,term,hits,newN,dupes){ _searchLog.push({ts:new Date().toISOString(),db,term,hits,new:newN,dupes}); }
+function clearSearchLog(){ _searchLog.length=0; }
+
+// ═══════════════════════════════════════════════════════════════
+// LIVE SCHEMA
+// ═══════════════════════════════════════════════════════════════
+let LIVE_SCHEMA=[
+  {field:'full_citation',label:'Full citation',type:'string',desc:'Full reference (APA)',enabled:true,extractFrom:null},
+  {field:'pub_year',label:'Publication year',type:'integer',desc:'Year of publication',enabled:true,extractFrom:null},
+  {field:'source_type',label:'Source type',type:'enum',desc:'journal|thesis|report|conference|grey',enabled:true,extractFrom:null},
+  {field:'language',label:'Language',type:'string',desc:'ISO 639-1 code',enabled:true,extractFrom:null},
+  {field:'country',label:'Country',type:'string',desc:'Country of record origin',enabled:true,extractFrom:'country',
+    keywords:['Japan','China','Korea','Taiwan','United States','USA','Canada','Mexico','Germany','France','Italy','Spain','Portugal','Switzerland','Austria','Belgium','Netherlands','United Kingdom','UK','Poland','Czech Republic','Hungary','Slovenia','Croatia','Serbia','Romania','Bulgaria','Greece','Turkey','Chile','Brazil','Argentina','Uruguay','Colombia','Peru','Australia','New Zealand','South Africa','Morocco','Tunisia','Israel','India','Thailand','Vietnam','Malaysia','Indonesia','Philippines','Finland','Sweden','Norway','Denmark','Ireland','Scotland']},
+  {field:'region',label:'Region / state',type:'string',desc:'State, province, or region',enabled:true,extractFrom:'region',
+    keywords:['Baden-Württemberg','Bavaria','Rhineland','Saxony','Thuringia','Trentino','Alto Adige','Lombardy','Friuli','Veneto','Piedmont','Tuscany','Nagano','Yamanashi','Hokkaido','Aomori','California','Oregon','Washington','Michigan','British Columbia','Ontario','Quebec','Catalonia','Aragon','Navarra','Valencia','Andalusia','Occitanie','Provence','Alsace','Valais','Vaud','Ticino','Styria','Tyrol','Carinthia','Flanders','Wallonia','Silesia','Alentejo','Algarve']},
+  {field:'locality',label:'Locality / site',type:'string',desc:'Exact site name',enabled:true,extractFrom:null},
+  {field:'coordinates',label:'Coordinates',type:'string',desc:'Decimal lat/lon',enabled:true,extractFrom:null},
+  {field:'sampling_year',label:'Sampling year',type:'string',desc:'Year of collection',enabled:true,extractFrom:null},
+  {field:'host_plant',label:'Host / subject',type:'string',desc:'Host plant, organism, or subject',enabled:true,extractFrom:'host',
+    keywords:['Prunus avium','Prunus cerasus','sweet cherry','sour cherry','cherry','Vaccinium corymbosum','Vaccinium myrtillus','blueberry','bilberry','Rubus idaeus','Rubus fruticosus','raspberry','blackberry','Fragaria','strawberry','Sambucus nigra','elderberry','Vitis vinifera','grape','Prunus persica','peach','nectarine','Ficus carica','fig','Rosa','Lonicera','Actinidia','kiwi','Morus','mulberry']},
+  {field:'study_context',label:'Study context',type:'string',desc:'Brief study type description',enabled:true,extractFrom:null},
+  {field:'evidence_type',label:'Evidence type',type:'enum',desc:'trap|morphology|DNA|observation|model',enabled:true,extractFrom:'evidence_type'},
+  {field:'evidence_class',label:'Evidence class',type:'enum',desc:'primary|secondary|modelled|...',enabled:true,extractFrom:'evidence_class'},
+  {field:'category',label:'Category',type:'enum',desc:'A|B|C|D|E|F',enabled:true,extractFrom:null},
+  {field:'screening_decision',label:'Screening',type:'enum',desc:'include|exclude|maybe',enabled:true,extractFrom:null},
+  {field:'screening_reason',label:'Screening reason',type:'string',desc:'Reason for decision',enabled:true,extractFrom:null},
+  {field:'excerpt',label:'Excerpt',type:'string',desc:'Sentence mentioning topic/location',enabled:true,extractFrom:null},
+  {field:'doi',label:'DOI',type:'string',desc:'DOI or "not reported"',enabled:true,extractFrom:null},
+  {field:'url',label:'URL',type:'string',desc:'Access URL',enabled:true,extractFrom:null},
+  {field:'pdf_available',label:'PDF available',type:'enum',desc:'yes|no|paywalled|unknown',enabled:true,extractFrom:null},
+  {field:'verification_status',label:'Verification',type:'enum',desc:'Verified|Partly verified|...',enabled:true,extractFrom:null},
+  {field:'notes',label:'Notes',type:'string',desc:'Caveats and flags',enabled:true,extractFrom:null},
+  {field:'source_db',label:'Source database',type:'string',desc:'Database where record was found',enabled:true,extractFrom:null},
 ];
+let customFields=[];
+function getActiveSchema(){ return [...LIVE_SCHEMA,...customFields].filter(f=>f.enabled); }
+function getKeywords(extractFrom){ const f=[...LIVE_SCHEMA,...customFields].find(s=>s.extractFrom===extractFrom); return f?(f.keywords||[]): []; }
 
-// Custom user-added fields beyond the defaults
-let customFields = [];
-
-function getActiveSchema() {
-  return [...LIVE_SCHEMA, ...customFields].filter(f => f.enabled);
-}
-function getKeywords(extractFrom) {
-  const f = [...LIVE_SCHEMA, ...customFields].find(s => s.extractFrom === extractFrom);
-  return f ? (f.keywords || []) : [];
-}
-
-const DB_LABELS = {
-  semanticscholar:'Semantic Scholar', openalex:'OpenAlex', europepmc:'Europe PMC',
-  crossref:'Crossref', unpaywall:'Unpaywall', base:'BASE', zenodo:'Zenodo',
-  eppo:'EPPO Global DB', cabi:'CABI', usda:'USDA/NAL',
-  jki:'JKI Germany', naro:'NARO Japan', caas:'CAAS China', rda:'RDA Korea',
-  gbif:'GBIF', inat:'iNaturalist', bold:'BOLD', ncbi:'NCBI', lens:'Lens.org',
-};
-
-const VERIF_CLASS = {
-  'Verified':'verif-verified','Partly verified':'verif-partly',
-  'Needs manual check':'verif-manual','Secondary citation only':'verif-secondary',
-  'No usable location':'verif-noloc',
-};
+const DB_LABELS={semanticscholar:'Semantic Scholar',openalex:'OpenAlex',europepmc:'Europe PMC',crossref:'Crossref',pubmed:'PubMed (via Europe PMC)',arxiv:'arXiv',biorxiv:'bioRxiv / medRxiv',zenodo:'Zenodo',unpaywall:'Unpaywall',base:'BASE',eppo:'EPPO Global DB',cabi:'CABI',usda:'USDA/NAL',jki:'JKI Germany',naro:'NARO Japan',caas:'CAAS China',rda:'RDA Korea',gbif:'GBIF',inat:'iNaturalist',bold:'BOLD',ncbi:'NCBI',lens:'Lens.org'};
+const VERIF_CLASS={'Verified':'verif-verified','Partly verified':'verif-partly','Needs manual check':'verif-manual','Secondary citation only':'verif-secondary','No usable location':'verif-noloc'};
+const SCREEN_CLASS={include:'screen-badge include',exclude:'screen-badge exclude',maybe:'screen-badge maybe'};
 
 // ═══════════════════════════════════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════════════════════════════════
-function getSettings() {
+function getSettings(){
   return {
-    primaryTerms: lines('cfg-primary'), synonymTerms: lines('cfg-synonyms'),
-    extraTerms:   lines('cfg-extra'),   excludeTerms: lines('cfg-exclude'),
-    yearFrom: parseInt(document.getElementById('cfg-yr-from').value)||1900,
-    yearTo:   parseInt(document.getElementById('cfg-yr-to').value)||2025,
-    maxPerQuery: parseInt(document.getElementById('cfg-max').value)||500,
-    languages: document.getElementById('cfg-langs').value.split(',').map(s=>s.trim()).filter(Boolean),
-    geoReq: parseInt(document.getElementById('cfg-geo-req').value)||0,
-    databases: checked('#chips-academic input,#chips-gov input,#chips-bio input'),
-    scope: checked('#chips-scope input'),
+    primaryTerms:lines('cfg-primary'),synonymTerms:lines('cfg-synonyms'),
+    extraTerms:lines('cfg-extra'),excludeTerms:lines('cfg-exclude'),
+    yearFrom:parseInt(document.getElementById('cfg-yr-from').value)||null,
+    yearTo:parseInt(document.getElementById('cfg-yr-to').value)||null,
+    maxPerQuery:parseInt(document.getElementById('cfg-max').value)||500,
+    languages:document.getElementById('cfg-langs').value.split(',').map(s=>s.trim()).filter(Boolean),
+    geoReq:parseInt(document.getElementById('cfg-geo-req').value)||0,
+    databases:checked('#chips-academic input,#chips-gov input,#chips-bio input'),
+    scope:checked('#chips-scope input'),
   };
 }
-
-function resetDefaults() {
-  document.getElementById('cfg-yr-from').value='1900';
-  document.getElementById('cfg-yr-to').value='2025';
+function resetDefaults(){
+  document.getElementById('cfg-yr-from').value='';
+  document.getElementById('cfg-yr-to').value='';
   document.getElementById('cfg-max').value='500';
   document.getElementById('cfg-geo-req').value='0';
   document.getElementById('cfg-extra').value='';
@@ -101,28 +103,20 @@ function resetDefaults() {
 // ═══════════════════════════════════════════════════════════════
 // ENGINES
 // ═══════════════════════════════════════════════════════════════
-const DELAY=200, RETRY_WAIT=2000, MAX_RETRY=2;
+const DELAY=200,RETRY_WAIT=2000,MAX_RETRY=2;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 async function fetchJSON(url,signal,attempt=0){
   await sleep(DELAY);
   try{
     const res=await fetch(url,{headers:{'Accept':'application/json'},signal});
-    if(res.status===429||res.status===503){
-      if(attempt<MAX_RETRY){await sleep(RETRY_WAIT*(attempt+1));return fetchJSON(url,signal,attempt+1);}
-      return null;
-    }
+    if(res.status===429||res.status===503){if(attempt<MAX_RETRY){await sleep(RETRY_WAIT*(attempt+1));return fetchJSON(url,signal,attempt+1);}return null;}
     if(!res.ok)return null;
     return await res.json();
   }catch(e){if(e.name==='AbortError')throw e;return null;}
 }
 
-function reconstitute(inv){
-  if(!inv)return '';
-  const pos=[];
-  for(const[w,idxs]of Object.entries(inv))for(const i of idxs)pos.push([i,w]);
-  return pos.sort((a,b)=>a[0]-b[0]).map(p=>p[1]).join(' ');
-}
+function reconstitute(inv){if(!inv)return '';const pos=[];for(const[w,idxs]of Object.entries(inv))for(const i of idxs)pos.push([i,w]);return pos.sort((a,b)=>a[0]-b[0]).map(p=>p[1]).join(' ');}
 const mapOAType=t=>({'journal-article':'journal','dissertation':'thesis','report':'report','book-chapter':'book_chapter','proceedings-article':'conference','preprint':'grey'}[t]||'journal');
 const mapCRType=t=>({'journal-article':'journal','book-chapter':'book_chapter','proceedings-article':'conference','dissertation':'thesis','report':'report','posted-content':'grey'}[t]||'journal');
 
@@ -130,20 +124,46 @@ let _gbifCache=null,_inatCache=null;
 function resetEngineCache(){_gbifCache=null;_inatCache=null;}
 
 async function queryOpenAlex(term,s,signal,label){
-  const url=`https://api.openalex.org/works?search=${encodeURIComponent(term)}&filter=publication_year:${s.yearFrom}-${s.yearTo}&per-page=100&mailto=sciwide-search@research.tool`;
-  const data=await fetchJSON(url,signal);
+  const yr=s.yearFrom&&s.yearTo?`&filter=publication_year:${s.yearFrom}-${s.yearTo}`:'';
+  const data=await fetchJSON(`https://api.openalex.org/works?search=${encodeURIComponent(term)}${yr}&per-page=100&mailto=sciwide-search@research.tool`,signal);
   if(!data)return null;
   return(data.results||[]).map(p=>({title:p.title||'',authors:(p.authorships||[]).map(a=>a.author?.display_name).filter(Boolean).join(', '),year:p.publication_year||null,abstract:reconstitute(p.abstract_inverted_index),doi:p.doi?p.doi.replace('https://doi.org/',''):'not reported',url:p.open_access?.oa_url||p.doi||'not reported',language:p.language||'',source_type:mapOAType(p.type),pdf_available:p.open_access?.is_oa?'yes':'paywalled',source_db:label||'OpenAlex'}));
 }
 async function queryEuropePMC(term,s,signal){
-  const q=encodeURIComponent(`"${term}" AND (PUB_YEAR:[${s.yearFrom} TO ${s.yearTo}])`);
-  const data=await fetchJSON(`https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${q}&format=json&pageSize=100&resultType=core`,signal);
+  const yr=s.yearFrom&&s.yearTo?` AND (PUB_YEAR:[${s.yearFrom} TO ${s.yearTo}])`:'';
+  const data=await fetchJSON(`https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${encodeURIComponent('"'+term+'"'+yr)}&format=json&pageSize=100&resultType=core`,signal);
   if(!data)return null;
   return((data.resultList||{}).result||[]).map(p=>({title:p.title||'',authors:(p.authorList?.author||[]).map(a=>a.fullName).join(', '),year:parseInt(p.pubYear)||null,abstract:p.abstractText||'',doi:p.doi||'not reported',url:p.doi?`https://doi.org/${p.doi}`:'not reported',language:p.language||'',source_type:'journal',pdf_available:p.isOpenAccess==='Y'?'yes':'unknown',source_db:'Europe PMC'}));
 }
+async function queryPubMed(term,s,signal){
+  const yr=s.yearFrom&&s.yearTo?` AND (PUB_YEAR:[${s.yearFrom} TO ${s.yearTo}])`:'';
+  const data=await fetchJSON(`https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${encodeURIComponent('"'+term+'" AND (SRC:MED)'+yr)}&format=json&pageSize=100&resultType=core`,signal);
+  if(!data)return null;
+  return((data.resultList||{}).result||[]).map(p=>({title:p.title||'',authors:(p.authorList?.author||[]).map(a=>a.fullName).join(', '),year:parseInt(p.pubYear)||null,abstract:p.abstractText||'',doi:p.doi||'not reported',url:p.pmid?`https://pubmed.ncbi.nlm.nih.gov/${p.pmid}/`:(p.doi?`https://doi.org/${p.doi}`:'not reported'),language:p.language||'',source_type:'journal',pdf_available:p.isOpenAccess==='Y'?'yes':'unknown',source_db:'PubMed (via Europe PMC)'}));
+}
+async function queryBiorxiv(term,s,signal){
+  const yr=s.yearFrom&&s.yearTo?` AND (PUB_YEAR:[${s.yearFrom} TO ${s.yearTo}])`:'';
+  const data=await fetchJSON(`https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${encodeURIComponent('"'+term+'" AND (SRC:PPR)'+yr)}&format=json&pageSize=100&resultType=core`,signal);
+  if(!data)return null;
+  return((data.resultList||{}).result||[]).map(p=>({title:p.title||'',authors:(p.authorList?.author||[]).map(a=>a.fullName).join(', '),year:parseInt(p.pubYear)||null,abstract:p.abstractText||'',doi:p.doi||'not reported',url:p.doi?`https://doi.org/${p.doi}`:'not reported',language:'en',source_type:'grey',pdf_available:'yes',source_db:'bioRxiv / medRxiv'}));
+}
+async function queryArxiv(term,s,signal){
+  try{
+    await sleep(DELAY);
+    const res=await fetch(`https://export.arxiv.org/api/query?search_query=all:${encodeURIComponent(term)}&start=0&max_results=100`,{signal});
+    if(!res.ok)return null;
+    const xml=new DOMParser().parseFromString(await res.text(),'application/xml');
+    return[...xml.querySelectorAll('entry')].map(e=>{
+      const doi=(e.querySelector('doi')?.textContent||'').trim();
+      const id=(e.querySelector('id')?.textContent||'').replace('http://arxiv.org/abs/','').trim();
+      const yr=parseInt((e.querySelector('published')?.textContent||'').slice(0,4))||null;
+      return{title:(e.querySelector('title')?.textContent||'').replace(/\s+/g,' ').trim(),authors:[...e.querySelectorAll('author name')].map(n=>n.textContent).join(', '),year:yr,abstract:(e.querySelector('summary')?.textContent||'').replace(/\s+/g,' ').trim(),doi:doi||'not reported',url:doi?`https://doi.org/${doi}`:`https://arxiv.org/abs/${id}`,language:'en',source_type:'grey',pdf_available:'yes',source_db:'arXiv'};
+    }).filter(r=>(!s.yearFrom||!r.year||(r.year>=s.yearFrom))&&(!s.yearTo||!r.year||(r.year<=s.yearTo)));
+  }catch(e){if(e.name==='AbortError')throw e;return null;}
+}
 async function queryCrossref(term,s,signal){
-  const url=`https://api.crossref.org/works?query=${encodeURIComponent(term)}&filter=from-pub-date:${s.yearFrom},until-pub-date:${s.yearTo}&rows=100&mailto=sciwide-search@research.tool`;
-  const data=await fetchJSON(url,signal);
+  const f=s.yearFrom&&s.yearTo?`&filter=from-pub-date:${s.yearFrom},until-pub-date:${s.yearTo}`:'';
+  const data=await fetchJSON(`https://api.crossref.org/works?query=${encodeURIComponent(term)}${f}&rows=100&mailto=sciwide-search@research.tool`,signal);
   if(!data)return null;
   return((data.message||{}).items||[]).map(p=>({title:Array.isArray(p.title)?p.title[0]:(p.title||''),authors:(p.author||[]).map(a=>[a.family,a.given].filter(Boolean).join(' ')).join('; '),year:p.published?.['date-parts']?.[0]?.[0]||null,abstract:p.abstract?p.abstract.replace(/<[^>]+>/g,''):'',doi:p.DOI||'not reported',url:p.DOI?`https://doi.org/${p.DOI}`:'not reported',source_type:mapCRType(p.type),pdf_available:p.link?.find(l=>l['content-type']==='application/pdf')?'yes':'unknown',source_db:'Crossref'}));
 }
@@ -153,11 +173,11 @@ async function queryZenodo(term,s,signal){
   return((data.hits||{}).hits||[]).map(r=>({title:r.metadata?.title||'',authors:(r.metadata?.creators||[]).map(c=>c.name).join(', '),year:r.metadata?.publication_date?parseInt(r.metadata.publication_date.slice(0,4)):null,abstract:r.metadata?.description||'',doi:r.doi||r.metadata?.doi||'not reported',url:r.links?.html||'not reported',source_type:'grey',pdf_available:r.files?.length?'yes':'unknown',source_db:'Zenodo'}));
 }
 async function queryGBIF(signal){
-  if(!_gbifCache){const data=await fetchJSON('https://api.gbif.org/v1/occurrence/search?taxonKey=1455379&limit=300',signal);_gbifCache=data?(data.results||[]):[];}
+  if(!_gbifCache){const data=await fetchJSON('https://api.gbif.org/v1/occurrence/search?limit=300',signal);_gbifCache=data?(data.results||[]): [];}
   return _gbifCache.map(o=>({title:`GBIF occurrence #${o.key}`,authors:o.institutionCode||o.datasetName||'GBIF',year:o.year||null,abstract:'',doi:'not reported',url:`https://www.gbif.org/occurrence/${o.key}`,country:o.country||'not reported',region:o.stateProvince||'not reported',locality:o.locality||'not reported',coordinates:(o.decimalLatitude&&o.decimalLongitude)?`${o.decimalLatitude}, ${o.decimalLongitude}`:'not reported',host_plant:o.associatedTaxa||'not reported',evidence_type:'observation',evidence_class:'primary',source_type:'occurrence',pdf_available:'unknown',source_db:'GBIF',_direct:true}));
 }
 async function queryINat(signal){
-  if(!_inatCache){const data=await fetchJSON('https://api.inaturalist.org/v1/observations?taxon_name=Drosophila+suzukii&quality_grade=research&per_page=200',signal);_inatCache=data?(data.results||[]):[];}
+  if(!_inatCache){const data=await fetchJSON('https://api.inaturalist.org/v1/observations?quality_grade=research&per_page=200',signal);_inatCache=data?(data.results||[]): [];}
   return _inatCache.map(o=>({title:`iNaturalist #${o.id}`,authors:o.user?.login||'iNaturalist user',year:o.observed_on?parseInt(o.observed_on.slice(0,4)):null,abstract:o.description||'',doi:'not reported',url:`https://www.inaturalist.org/observations/${o.id}`,country:o.place_guess||'not reported',region:'not reported',locality:o.place_guess||'not reported',coordinates:o.location||'not reported',evidence_type:'observation',evidence_class:'primary',source_type:'occurrence',pdf_available:'unknown',source_db:'iNaturalist',_direct:true}));
 }
 async function engineQuery(db,term,s,signal){
@@ -166,6 +186,9 @@ async function engineQuery(db,term,s,signal){
       case 'semanticscholar':return await queryOpenAlex(term,s,signal,'Semantic Scholar (via OpenAlex)');
       case 'openalex':return await queryOpenAlex(term,s,signal,'OpenAlex');
       case 'europepmc':return await queryEuropePMC(term,s,signal);
+      case 'pubmed':return await queryPubMed(term,s,signal);
+      case 'biorxiv':return await queryBiorxiv(term,s,signal);
+      case 'arxiv':return await queryArxiv(term,s,signal);
       case 'crossref':return await queryCrossref(term,s,signal);
       case 'zenodo':return await queryZenodo(term,s,signal);
       case 'gbif':return await queryGBIF(signal);
@@ -180,43 +203,12 @@ async function engineQuery(db,term,s,signal){
 // ═══════════════════════════════════════════════════════════════
 const EV_TYPE_KW={trap:['trap','trapping','Droso-Trap','McPhail','sticky'],morphology:['morpholog','specimen','pinned','museum'],DNA:['DNA','COI','ITS','barcode','sequenc','haplotype'],model:['MaxEnt','BIOCLIM','SDM','niche'],review:['review','meta-analysis','synthesis'],lab_colony:['colony','laborator','strain','reared','isofemale']};
 const EV_CLASS_KW={primary:['collect','trap','specimen','survey','monitor','field','wild','caught','detected','first record','first report'],secondary:['cited in','according to','as reported by','pers. comm'],modelled:['model','predict','project','MaxEnt'],'review-only':['review','meta-analysis','synthesis'],'lab-strain-origin':['colony origin','lab strain','lab population','reared from','isofemale']};
-
-function extractFrom(text,list){
-  if(!text)return 'not reported';
-  for(const p of list){if(new RegExp('\\b'+p.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','i').test(text))return p;}
-  return 'not reported';
-}
-function detectEvType(text){
-  if(!text)return 'observation';
-  for(const[t,kws]of Object.entries(EV_TYPE_KW))for(const k of kws)if(text.toLowerCase().includes(k.toLowerCase()))return t;
-  return 'observation';
-}
-function detectEvClass(text){
-  if(!text)return 'primary';
-  for(const[c,kws]of Object.entries(EV_CLASS_KW))for(const k of kws)if(text.toLowerCase().includes(k.toLowerCase()))return c;
-  return 'primary';
-}
-function extractCustomField(fieldDef, text){
-  if(!fieldDef.keywords||!fieldDef.keywords.length)return 'not reported';
-  return extractFrom(text, fieldDef.keywords);
-}
-function assignCat(r){
-  if(r.pub_year&&r.pub_year<1980)return 'F';
-  if(!r.country||r.country==='not reported')return 'E';
-  const ec=r.evidence_class||'';
-  if(ec==='lab-strain-origin')return 'C';
-  if(ec==='review-only'||ec==='modelled')return 'D';
-  if(ec==='primary')return 'A';
-  return 'B';
-}
-function assignVerif(r){
-  if(!r.country||r.country==='not reported')return 'No usable location';
-  if(r.evidence_class==='secondary')return 'Secondary citation only';
-  if(!r.locality||r.locality==='not reported')return 'Needs manual check';
-  if(r.doi&&r.doi!=='not reported'&&r.evidence_class==='primary')return 'Verified';
-  return 'Partly verified';
-}
-
+function extractFrom(text,list){if(!text)return 'not reported';for(const p of list){if(new RegExp('\\b'+p.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','i').test(text))return p;}return 'not reported';}
+function detectEvType(text){if(!text)return 'observation';for(const[t,kws]of Object.entries(EV_TYPE_KW))for(const k of kws)if(text.toLowerCase().includes(k.toLowerCase()))return t;return 'observation';}
+function detectEvClass(text){if(!text)return 'primary';for(const[c,kws]of Object.entries(EV_CLASS_KW))for(const k of kws)if(text.toLowerCase().includes(k.toLowerCase()))return c;return 'primary';}
+function extractCustomField(fd,text){return(!fd.keywords||!fd.keywords.length)?'not reported':extractFrom(text,fd.keywords);}
+function assignCat(r){if(r.pub_year&&r.pub_year<1980)return 'F';if(!r.country||r.country==='not reported')return 'E';const ec=r.evidence_class||'';if(ec==='lab-strain-origin')return 'C';if(ec==='review-only'||ec==='modelled')return 'D';if(ec==='primary')return 'A';return 'B';}
+function assignVerif(r){if(!r.country||r.country==='not reported')return 'No usable location';if(r.evidence_class==='secondary')return 'Secondary citation only';if(!r.locality||r.locality==='not reported')return 'Needs manual check';if(r.doi&&r.doi!=='not reported'&&r.evidence_class==='primary')return 'Verified';return 'Partly verified';}
 function processHit(hit){
   const ft=[hit.title,hit.abstract].join(' ');
   const country=hit.country||extractFrom(ft,getKeywords('country'));
@@ -227,129 +219,141 @@ function processHit(hit){
   const doi=hit.doi||'not reported';
   const sentences=(hit.abstract||'').match(/[^.!?]+[.!?]+/g)||[];
   const excerpt=(sentences.find(s=>s.toLowerCase().includes((country||'').toLowerCase()))||sentences[0]||'').trim().slice(0,400)||'not reported';
-
   const r={
     full_citation:hit._direct?`${hit.authors} (${hit.year||'n.d.'}). ${hit.title}. ${hit.source_db}.`:`${hit.authors||''} (${hit.year||'n.d.'}). ${hit.title||'Untitled'}. DOI: ${doi}`,
-    pub_year:hit.year, source_type:hit.source_type||'journal', language:hit.language||'en',
-    country, region,
-    locality:hit.locality||'not reported',
-    coordinates:hit.coordinates||'not reported',
-    sampling_year:hit.year||'not reported',
-    host_plant:host,
+    pub_year:hit.year,source_type:hit.source_type||'journal',language:hit.language||'en',
+    country,region,locality:hit.locality||'not reported',coordinates:hit.coordinates||'not reported',
+    sampling_year:hit.year||'not reported',host_plant:host,
     study_context:hit._direct?'Occurrence record':(evType==='lab_colony'?'Laboratory study':'Field study / survey'),
-    evidence_type:evType, evidence_class:evClass,
+    evidence_type:evType,evidence_class:evClass,
     excerpt:hit._direct?'not reported':excerpt,
-    doi, url:hit.url||(doi!=='not reported'?`https://doi.org/${doi}`:'not reported'),
-    pdf_available:hit.pdf_available||'unknown',
-    source_db:hit.source_db,
+    doi,url:hit.url||(doi!=='not reported'?`https://doi.org/${doi}`:'not reported'),
+    pdf_available:hit.pdf_available||'unknown',source_db:hit.source_db,
     notes:country==='not reported'?'No geographic term found — manual full-text check required.':'',
+    screening_decision:'',screening_reason:'',
   };
-
-  for(const f of customFields){
-    r[f.field]=(f.extractFrom==='custom'&&f.keywords?.length)?extractCustomField(f,ft):'not reported';
-  }
-
-  r.category=assignCat(r);
-  r.verification_status=assignVerif(r);
+  for(const f of customFields)r[f.field]=(f.extractFrom==='custom'&&f.keywords?.length)?extractCustomField(f,ft):'not reported';
+  r.category=assignCat(r);r.verification_status=assignVerif(r);
   return[r];
 }
-
 const _seen=new Set();
 function resetSeen(){_seen.clear();}
-function isDuplicate(r){
-  const key=r.doi&&r.doi!=='not reported'?r.doi:(r.full_citation||'').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,80);
-  if(_seen.has(key))return true;
-  _seen.add(key);return false;
-}
+function isDuplicate(r){const key=r.doi&&r.doi!=='not reported'?r.doi:(r.full_citation||'').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,80);if(_seen.has(key))return true;_seen.add(key);return false;}
 
 // ═══════════════════════════════════════════════════════════════
-// EXPORT — all use active schema
+// EXPORT
 // ═══════════════════════════════════════════════════════════════
-const stamp=()=>new Date().toISOString().slice(0,10);
-function dlFile(content,name,mime){
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob(['\uFEFF'+content],{type:mime}));
-  a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);
-}
-
 function exportCSV(cat){
   const data=(window._SWDRecords||[]).filter(r=>cat==='all'||r.category===cat);
   if(!data.length){alert('No records. Run a search first.');return;}
+  const rows=data.map(r=>{const sc=getScreening(r);return{...r,screening_decision:sc.decision,screening_reason:sc.reason};});
   const active=getActiveSchema();
-  const headers=active.map(s=>s.label||s.field);
-  const rows=data.map(r=>active.map(s=>`"${String(r[s.field]||'').replace(/"/g,'""').replace(/\n/g,' ')}"`).join(','));
-  dlFile([headers.join(','),...rows].join('\r\n'),`sciwide_records${cat!=='all'?'_cat'+cat:''}_${stamp()}.csv`,'text/csv;charset=utf-8;');
+  const csvRows=rows.map(r=>active.map(s=>`"${String(r[s.field]||'').replace(/"/g,'""').replace(/\n/g,' ')}"`).join(','));
+  dlFile([active.map(s=>s.label||s.field).join(','),...csvRows].join('\r\n'),`sciwide_records${cat!=='all'?'_cat'+cat:''}_${stamp()}.csv`,'text/csv;charset=utf-8;');
 }
 function exportJSON(){
-  const data=window._SWDRecords||[];
-  if(!data.length){alert('No records.');return;}
-  dlFile(JSON.stringify(data,null,2),`sciwide_records_${stamp()}.json`,'application/json');
+  if(!(window._SWDRecords||[]).length){alert('No records.');return;}
+  const out=(window._SWDRecords||[]).map(r=>{const sc=getScreening(r);return{...r,screening_decision:sc.decision,screening_reason:sc.reason};});
+  dlFile(JSON.stringify(out,null,2),`sciwide_records_${stamp()}.json`,'application/json');
 }
 function exportBibtex(){
   const data=(window._SWDRecords||[]).filter(r=>r.doi&&r.doi!=='not reported');
   if(!data.length){alert('No records with DOIs.');return;}
-  const entries=data.map((r,i)=>{
-    const key=`record${r.pub_year||'nd'}_${i+1}`;
-    const au=(r.full_citation||'').split('(')[0].trim().replace(/,\s*$/,'');
-    const m=(r.full_citation||'').match(/\)\.\s+(.+?)\.\s+DOI:/);
-    return `@article{${key},\n  author={${au}},\n  year={${r.pub_year||''}},\n  title={${m?m[1]:'Study'}},\n  doi={${r.doi}}\n}`;
-  });
+  const entries=data.map((r,i)=>{const key=`record${r.pub_year||'nd'}_${i+1}`;const au=(r.full_citation||'').split('(')[0].trim().replace(/,\s*$/,'');const m=(r.full_citation||'').match(/\)\.\s+(.+?)\.\s+DOI:/);return `@article{${key},\n  author={${au}},\n  year={${r.pub_year||''}},\n  title={${m?m[1]:'Study'}},\n  doi={${r.doi}}\n}`;});
   dlFile(entries.join('\n\n'),`sciwide_${stamp()}.bib`,'text/plain;charset=utf-8;');
+}
+function exportRIS(){
+  const data=window._SWDRecords||[];
+  if(!data.length){alert('No records. Run a search first.');return;}
+  const ris=data.map(r=>{
+    const au=(r.full_citation||'').split('(')[0].trim().split(';').map(a=>a.trim()).filter(Boolean);
+    const m=(r.full_citation||'').match(/\)\.\s+(.+?)\.\s+DOI:/);
+    const title=m?m[1].trim():(r.full_citation||'').slice(0,120);
+    const sc=getScreening(r);
+    const ln=['TY  - JOUR'];
+    au.forEach(a=>ln.push(`AU  - ${a}`));
+    ln.push(`PY  - ${r.pub_year||''}`);
+    ln.push(`TI  - ${title}`);
+    if(r.doi&&r.doi!=='not reported')ln.push(`DO  - ${r.doi}`);
+    if(r.url&&r.url!=='not reported')ln.push(`UR  - ${r.url}`);
+    if(r.country&&r.country!=='not reported')ln.push(`CY  - ${r.country}`);
+    ln.push(`N1  - Cat: ${r.category} | Verif: ${r.verification_status} | DB: ${r.source_db}`);
+    if(r.notes)ln.push(`N2  - ${r.notes}`);
+    if(sc.decision)ln.push(`KW  - screening:${sc.decision}`);
+    if(sc.reason)ln.push(`KW  - reason:${sc.reason}`);
+    ln.push('ER  - ');
+    return ln.join('\r\n');
+  });
+  dlFile(ris.join('\r\n\r\n'),`sciwide_${stamp()}.ris`,'application/x-research-info-systems;charset=utf-8;');
 }
 function exportGeoJSON(){
   const data=(window._SWDRecords||[]).filter(r=>r.coordinates&&r.coordinates!=='not reported');
   if(!data.length){alert('No records with coordinates.');return;}
   const active=getActiveSchema();
-  const features=data.map(r=>{
-    const[lat,lon]=r.coordinates.split(',').map(s=>parseFloat(s.trim()));
-    const props={};active.forEach(s=>props[s.label||s.field]=r[s.field]||'');
-    return{type:'Feature',geometry:{type:'Point',coordinates:[lon,lat]},properties:props};
-  });
+  const features=data.map(r=>{const[lat,lon]=r.coordinates.split(',').map(s=>parseFloat(s.trim()));const props={};active.forEach(s=>props[s.label||s.field]=r[s.field]||'');return{type:'Feature',geometry:{type:'Point',coordinates:[lon,lat]},properties:props};});
   dlFile(JSON.stringify({type:'FeatureCollection',features},null,2),`sciwide_geo_${stamp()}.geojson`,'application/json');
 }
-function exportSchema(){
-  const all=[...LIVE_SCHEMA,...customFields];
-  dlFile(JSON.stringify(all,null,2),`sciwide_schema_${stamp()}.json`,'application/json');
-}
+function exportSchema(){dlFile(JSON.stringify([...LIVE_SCHEMA,...customFields],null,2),`sciwide_schema_${stamp()}.json`,'application/json');}
 function exportMissing(){
-  const items=lines('cfg-missing');
-  if(!items.length){alert('No known-gap sources listed yet. Add them in Configure → "Known gaps", or load a preset.');return;}
-  const out=['Known gaps / hard-to-access sources','═'.repeat(56),'Generated: '+new Date().toISOString(),'',...items.map((s,i)=>`${i+1}. ${s}`)];
-  dlFile(out.join('\n'),`missing_sources_${stamp()}.txt`,'text/plain;charset=utf-8;');
+  const items=lines('cfg-missing');if(!items.length){alert('No known-gap sources listed yet.');return;}
+  dlFile(['Known gaps / hard-to-access sources','═'.repeat(56),'Generated: '+new Date().toISOString(),'',...items.map((s,i)=>`${i+1}. ${s}`)].join('\n'),`missing_sources_${stamp()}.txt`,'text/plain;charset=utf-8;');
 }
-
+function exportSearchLog(){
+  if(!_searchLog.length){alert('No search log yet. Run a search first.');return;}
+  const s=getSettings();
+  const terms=[...s.primaryTerms,...s.synonymTerms,...s.extraTerms];
+  const dbs=[...new Set(_searchLog.map(l=>l.db))];
+  const allRec=window._SWDRecords||[];
+  const inc=allRec.filter(r=>getScreening(r).decision==='include').length;
+  const exc=allRec.filter(r=>getScreening(r).decision==='exclude').length;
+  const maybe=allRec.filter(r=>getScreening(r).decision==='maybe').length;
+  const un=allRec.filter(r=>!getScreening(r).decision).length;
+  const hdr=[
+    'SciWide Search — PRISMA-style Search Report','═'.repeat(60),
+    `Generated: ${new Date().toISOString()}`,'',
+    '── SEARCH STRATEGY ───────────────────────────────────────────',
+    `Primary terms (${terms.length}):`,
+    ...terms.map(t=>`  • ${t}`),'',
+    `Databases searched (${dbs.length}):`,
+    ...dbs.map(d=>`  • ${DB_LABELS[d]||d}`),'',
+    `Year range: ${s.yearFrom||'(all)'} – ${s.yearTo||'(all)'}`,
+    `Total queries: ${_searchLog.length}`,
+    `Total raw hits: ${_searchLog.reduce((a,l)=>a+l.hits,0)}`,
+    `After deduplication: ${_searchLog.reduce((a,l)=>a+(l.new||0),0)}`,
+    `Records in session: ${allRec.length}`,'',
+    '── SCREENING SUMMARY ─────────────────────────────────────────',
+    `Included: ${inc}  Excluded: ${exc}  Maybe: ${maybe}  Unscreened: ${un}`,'',
+    '── QUERY-BY-QUERY LOG ─────────────────────────────────────────',
+    'Timestamp                | Database                      | Term                          | Hits | New | Dupes',
+    '─'.repeat(105),
+  ];
+  const rows=_searchLog.map(l=>`${l.ts.replace('T',' ').slice(0,19)} | ${(DB_LABELS[l.db]||l.db).padEnd(29)} | ${(l.term||'(occurrence)').slice(0,29).padEnd(29)} | ${String(l.hits).padStart(4)} | ${String(l.new||0).padStart(3)} | ${String(l.dupes||0).padStart(5)}`);
+  dlFile([...hdr,...rows].join('\n'),`sciwide_search_log_${stamp()}.txt`,'text/plain;charset=utf-8;');
+}
+function exportScreened(decision){
+  const data=(window._SWDRecords||[]).filter(r=>getScreening(r).decision===decision);
+  if(!data.length){alert(`No records marked as "${decision}" yet.`);return;}
+  const active=getActiveSchema();
+  const headers=[...active.map(s=>s.label||s.field),'Screening','Reason'];
+  const rows=data.map(r=>{const sc=getScreening(r);return[...active.map(s=>`"${String(r[s.field]||'').replace(/"/g,'""')}"`),`"${sc.decision}"`,`"${sc.reason.replace(/"/g,'""')}"`].join(',');});
+  dlFile([headers.join(','),...rows].join('\r\n'),`sciwide_${decision}_${stamp()}.csv`,'text/csv;charset=utf-8;');
+}
 function getPaywalled(){return(window._SWDRecords||[]).filter(r=>r.doi&&r.doi!=='not reported'&&(r.pdf_available==='paywalled'||r.pdf_available==='no'||r.pdf_available==='unknown'));}
 function exportPaywallTxt(){
-  const data=getPaywalled();
-  if(!data.length){alert('No paywalled records.');return;}
-  const out=['Paywalled papers — DOI list','═'.repeat(40),`Generated: ${new Date().toISOString()}`,`Total: ${data.length} papers`,'','HOW TO ACCESS:','  1. Email the corresponding author (Google Scholar / ResearchGate)','  2. Interlibrary loan (ILL) — free at most institutions, 24–48h','  3. Unpaywall: https://unpaywall.org/<DOI>','  4. Europe PMC: https://europepmc.org/search?query=<DOI>','','─'.repeat(60),'',
-    ...data.map((r,i)=>[`[${i+1}] DOI: ${r.doi}`,`    Authors: ${(r.full_citation||'').split('(')[0].trim().slice(0,100)}`,`    Year: ${r.pub_year||'n.d.'} | Country: ${r.country} | Category: ${r.category}`,`    Link: https://doi.org/${r.doi}`,`    Unpaywall: https://unpaywall.org/${r.doi}`,``].join('\n'))];
-  dlFile(out.join('\n'),`paywalled_dois_${stamp()}.txt`,'text/plain;charset=utf-8;');
+  const data=getPaywalled();if(!data.length){alert('No paywalled records.');return;}
+  dlFile(['Paywalled papers — DOI list','═'.repeat(40),`Generated: ${new Date().toISOString()}`,`Total: ${data.length}`,'','ACCESS OPTIONS:','  1. Email corresponding author (Google Scholar / ResearchGate)','  2. Interlibrary loan (ILL) — free, 24–48h','  3. https://unpaywall.org/<DOI>','  4. https://europepmc.org/search?query=<DOI>','','─'.repeat(60),'',...data.map((r,i)=>`[${i+1}] DOI: ${r.doi}\n    Authors: ${(r.full_citation||'').split('(')[0].trim().slice(0,100)}\n    Year: ${r.pub_year||'n.d.'} | Category: ${r.category}\n    Link: https://doi.org/${r.doi}\n    Unpaywall: https://unpaywall.org/${r.doi}\n`)].join('\n'),`paywalled_dois_${stamp()}.txt`,'text/plain;charset=utf-8;');
 }
 function exportPaywallCsv(){
-  const data=getPaywalled();
-  if(!data.length){alert('No paywalled records.');return;}
-  const cols=['doi','pub_year','authors','country','category','doi_url','unpaywall_url'];
+  const data=getPaywalled();if(!data.length){alert('No paywalled records.');return;}
   const rows=data.map(r=>{const au=(r.full_citation||'').split('(')[0].trim().slice(0,120);return[`"${r.doi}"`,`"${r.pub_year||''}"`,`"${au.replace(/"/g,'""')}"`,`"${r.country}"`,`"${r.category}"`,`"https://doi.org/${r.doi}"`,`"https://unpaywall.org/${r.doi}"`].join(',');});
-  dlFile([cols.join(','),...rows].join('\r\n'),`paywalled_dois_${stamp()}.csv`,'text/csv;charset=utf-8;');
+  dlFile(['doi,pub_year,authors,country,category,doi_url,unpaywall_url',...rows].join('\r\n'),`paywalled_dois_${stamp()}.csv`,'text/csv;charset=utf-8;');
 }
-
-function copyDOI(doi,codeId){
-  navigator.clipboard.writeText(doi).then(()=>{const el=document.getElementById(codeId);if(el){el.style.background='var(--accent-lt)';setTimeout(()=>el.style.background='',1200);}});
-}
+function copyDOI(doi,codeId){navigator.clipboard.writeText(doi).then(()=>{const el=document.getElementById(codeId);if(el){el.style.background='var(--accent-lt)';setTimeout(()=>el.style.background='',1200);}});}
 window.copyDOI=copyDOI;
-
-function copyCitation(btn){
-  const text='Ebrahimi, M. (2026). SciWide Search [Software]. https://github.com/mehregan59/Sc_wide_Search';
-  navigator.clipboard.writeText(text).then(()=>{
-    if(btn){const orig=btn.textContent;btn.textContent='Copied!';setTimeout(()=>btn.textContent=orig,1500);}
-  });
-}
+function copyCitation(btn){navigator.clipboard.writeText('Ebrahimi, M. (2026). SciWide Search [Software]. https://github.com/mehregan59/Sc_wide_Search').then(()=>{if(btn){const o=btn.textContent;btn.textContent='Copied!';setTimeout(()=>btn.textContent=o,1500);}});}
 window.copyCitation=copyCitation;
-
 function renderPaywallPanel(){
-  const el=document.getElementById('paywall-list');
-  const countEl=document.getElementById('paywall-count');
+  const el=document.getElementById('paywall-list'),countEl=document.getElementById('paywall-count');
   if(!el)return;
   const q=(document.getElementById('paywall-search')?.value||'').toLowerCase();
   let data=getPaywalled();
@@ -363,233 +367,103 @@ function renderPaywallPanel(){
     return `<div class="paywall-row"><div class="paywall-index">${i+1}</div><div class="paywall-body"><div class="paywall-title">${esc(title)}</div><div class="paywall-meta">${esc(au)} &middot; ${r.pub_year||'n.d.'} &middot; ${esc(r.country||'—')}</div><div class="paywall-doi"><code class="doi-code" id="doi-code-${i}">${esc(r.doi)}</code><button class="btn btn-sm paywall-copy" onclick="copyDOI('${r.doi}','doi-code-${i}')">Copy DOI</button></div><div class="paywall-actions"><a class="paywall-action-link" href="https://doi.org/${esc(r.doi)}" target="_blank" rel="noopener">Publisher →</a> <a class="paywall-action-link" href="https://scholar.google.com/scholar?q=${encodeURIComponent(r.doi)}" target="_blank" rel="noopener">Google Scholar →</a> <a class="paywall-action-link" href="https://europepmc.org/search?query=${encodeURIComponent(r.doi)}" target="_blank" rel="noopener">Europe PMC →</a> <a class="paywall-action-link" href="https://unpaywall.org/${esc(r.doi)}" target="_blank" rel="noopener">Unpaywall →</a></div></div></div>`;
   }).join('');
 }
-
-window.SWDExportFn={csv:exportCSV,json:exportJSON,bibtex:exportBibtex,geojson:exportGeoJSON,missing:exportMissing,schema:exportSchema,paywallTxt:exportPaywallTxt,paywallCsv:exportPaywallCsv};
+window.SWDExportFn={csv:exportCSV,json:exportJSON,bibtex:exportBibtex,ris:exportRIS,geojson:exportGeoJSON,missing:exportMissing,schema:exportSchema,searchLog:exportSearchLog,screened:exportScreened,paywallTxt:exportPaywallTxt,paywallCsv:exportPaywallCsv};
 
 // ═══════════════════════════════════════════════════════════════
-// SCHEMA EDITOR UI
+// SCHEMA EDITOR
 // ═══════════════════════════════════════════════════════════════
 function renderSchemaEditor(){
-  const tbody=document.getElementById('schema-editor-tbody');
-  if(!tbody)return;
+  const tbody=document.getElementById('schema-editor-tbody');if(!tbody)return;
   const all=[...LIVE_SCHEMA,...customFields];
   tbody.innerHTML=all.map((f,i)=>{
-    const isCustom=i>=LIVE_SCHEMA.length;
-    const kwCount=f.keywords?f.keywords.length:0;
-    return `<tr class="${f.enabled?'':'schema-row-disabled'}" id="srow-${f.field}">
-      <td><label class="schema-toggle"><input type="checkbox" ${f.enabled?'checked':''} onchange="SWDSchema.toggle('${f.field}',this.checked)"></label></td>
-      <td><code class="field-name" style="font-size:11px">${f.field}</code></td>
-      <td><input type="text" value="${esc(f.label||f.field)}" class="schema-label-input" onchange="SWDSchema.rename('${f.field}',this.value)" placeholder="Column label" /></td>
-      <td style="font-size:11px;color:var(--ink-3)">${f.type}</td>
-      <td>${f.extractFrom?`<button class="btn btn-sm btn-ghost schema-kw-btn" onclick="SWDSchema.editKeywords('${f.field}')">${kwCount} keywords</button>`:'<span style="font-size:11px;color:var(--ink-3)">—</span>'}</td>
-      <td>${isCustom?`<button class="btn btn-sm btn-ghost" onclick="SWDSchema.removeCustom('${f.field}')" style="color:var(--red)">Remove</button>`:'<span style="font-size:11px;color:var(--ink-3)">core</span>'}</td>
-    </tr>`;
+    const isCustom=i>=LIVE_SCHEMA.length,kwCount=f.keywords?f.keywords.length:0;
+    return `<tr class="${f.enabled?'':'schema-row-disabled'}"><td><label class="schema-toggle"><input type="checkbox" ${f.enabled?'checked':''} onchange="SWDSchema.toggle('${f.field}',this.checked)"></label></td><td><code class="field-name" style="font-size:11px">${f.field}</code></td><td><input type="text" value="${esc(f.label||f.field)}" class="schema-label-input" onchange="SWDSchema.rename('${f.field}',this.value)" placeholder="Column label" /></td><td style="font-size:11px;color:var(--ink-3)">${f.type}</td><td>${f.extractFrom?`<button class="btn btn-sm btn-ghost schema-kw-btn" onclick="SWDSchema.editKeywords('${f.field}')">${kwCount} keywords</button>`:'<span style="font-size:11px;color:var(--ink-3)">—</span>'}</td><td>${isCustom?`<button class="btn btn-sm btn-ghost" onclick="SWDSchema.removeCustom('${f.field}')" style="color:var(--red)">Remove</button>`:'<span style="font-size:11px;color:var(--ink-3)">core</span>'}</td></tr>`;
   }).join('');
 }
-
-function renderSchemaPreview(){
-  const tbody=document.getElementById('schema-tbody');
-  if(!tbody)return;
-  const active=getActiveSchema();
-  tbody.innerHTML=active.map(s=>`<tr><td class="field-name">${s.field}</td><td class="field-type">${s.type}</td><td style="font-size:12.5px;color:var(--ink-2)">${s.label||s.field} — ${s.desc||''}</td></tr>`).join('');
-}
-
+function renderSchemaPreview(){const tbody=document.getElementById('schema-tbody');if(!tbody)return;tbody.innerHTML=getActiveSchema().map(s=>`<tr><td class="field-name">${s.field}</td><td class="field-type">${s.type}</td><td style="font-size:12.5px;color:var(--ink-2)">${s.label||s.field} — ${s.desc||''}</td></tr>`).join('');}
 window.SWDSchema={
-  toggle(field,enabled){
-    const f=[...LIVE_SCHEMA,...customFields].find(s=>s.field===field);
-    if(f){f.enabled=enabled;renderSchemaEditor();renderSchemaPreview();renderTable();}
-  },
-  rename(field,label){
-    const f=[...LIVE_SCHEMA,...customFields].find(s=>s.field===field);
-    if(f){f.label=label;renderSchemaPreview();renderTable();}
-  },
+  toggle(field,enabled){const f=[...LIVE_SCHEMA,...customFields].find(s=>s.field===field);if(f){f.enabled=enabled;renderSchemaEditor();renderSchemaPreview();renderTable();}},
+  rename(field,label){const f=[...LIVE_SCHEMA,...customFields].find(s=>s.field===field);if(f){f.label=label;renderSchemaPreview();renderTable();}},
   editKeywords(field){
-    const f=[...LIVE_SCHEMA,...customFields].find(s=>s.field===field);
-    if(!f)return;
-    const current=(f.keywords||[]).join('\n');
-    const modal=document.getElementById('kw-modal');
-    const title=document.getElementById('kw-modal-title');
-    const ta=document.getElementById('kw-modal-ta');
-    const saveBtn=document.getElementById('kw-modal-save');
-    title.textContent=`Keywords for "${f.label||f.field}"`;
-    ta.value=current;
-    modal.style.display='flex';
-    saveBtn.onclick=()=>{
-      f.keywords=ta.value.split('\n').map(s=>s.trim()).filter(Boolean);
-      modal.style.display='none';
-      renderSchemaEditor();
-    };
+    const f=[...LIVE_SCHEMA,...customFields].find(s=>s.field===field);if(!f)return;
+    document.getElementById('kw-modal-title').textContent=`Keywords for "${f.label||f.field}"`;
+    document.getElementById('kw-modal-ta').value=(f.keywords||[]).join('\n');
+    document.getElementById('kw-modal').style.display='flex';
+    document.getElementById('kw-modal-save').onclick=()=>{f.keywords=document.getElementById('kw-modal-ta').value.split('\n').map(s=>s.trim()).filter(Boolean);document.getElementById('kw-modal').style.display='none';renderSchemaEditor();};
   },
   addCustomField(){
-    const nameEl=document.getElementById('new-field-name');
-    const labelEl=document.getElementById('new-field-label');
-    const kwEl=document.getElementById('new-field-kw');
-    const name=(nameEl.value||'').trim().replace(/[^a-z0-9_]/gi,'_').toLowerCase();
-    const label=(labelEl.value||'').trim()||name;
-    const kws=kwEl.value.split('\n').map(s=>s.trim()).filter(Boolean);
+    const name=(document.getElementById('new-field-name').value||'').trim().replace(/[^a-z0-9_]/gi,'_').toLowerCase();
+    const label=(document.getElementById('new-field-label').value||'').trim()||name;
+    const kws=document.getElementById('new-field-kw').value.split('\n').map(s=>s.trim()).filter(Boolean);
     if(!name){alert('Field name required.');return;}
-    if([...LIVE_SCHEMA,...customFields].find(f=>f.field===name)){alert('A field with that name already exists.');return;}
+    if([...LIVE_SCHEMA,...customFields].find(f=>f.field===name)){alert('Name already exists.');return;}
     customFields.push({field:name,label,type:'string',desc:'Custom field',enabled:true,extractFrom:'custom',keywords:kws});
-    nameEl.value='';labelEl.value='';kwEl.value='';
+    document.getElementById('new-field-name').value='';document.getElementById('new-field-label').value='';document.getElementById('new-field-kw').value='';
     renderSchemaEditor();renderSchemaPreview();
   },
-  removeCustom(field){
-    customFields=customFields.filter(f=>f.field!==field);
-    renderSchemaEditor();renderSchemaPreview();renderTable();
+  removeCustom(field){customFields=customFields.filter(f=>f.field!==field);renderSchemaEditor();renderSchemaPreview();renderTable();},
+  loadJSON(){
+    const inp=document.createElement('input');inp.type='file';inp.accept='.json';
+    inp.onchange=e=>{
+      const file=e.target.files[0];if(!file)return;
+      const reader=new FileReader();
+      reader.onload=ev=>{
+        try{
+          const loaded=JSON.parse(ev.target.result);if(!Array.isArray(loaded)){alert('Invalid schema file.');return;}
+          loaded.forEach(lf=>{const target=LIVE_SCHEMA.find(s=>s.field===lf.field);if(target){if(lf.label!=null)target.label=lf.label;if(typeof lf.enabled==='boolean')target.enabled=lf.enabled;if(lf.keywords)target.keywords=lf.keywords;}else if(lf.field&&!customFields.find(c=>c.field===lf.field)){customFields.push({field:lf.field,label:lf.label||lf.field,type:lf.type||'string',desc:lf.desc||'',enabled:lf.enabled!==false,extractFrom:'custom',keywords:lf.keywords||[]});}});
+          renderSchemaEditor();renderSchemaPreview();renderTable();alert('Schema loaded.');
+        }catch(err){alert('Could not parse schema: '+err.message);}
+      };reader.readAsText(file);
+    };inp.click();
   },
 };
 
 // ═══════════════════════════════════════════════════════════════
-// PRESETS — save/load full configuration as a JSON file
+// PRESETS
 // ═══════════════════════════════════════════════════════════════
 function serializePreset(name){
-  return {
-    presetName: name || 'Untitled preset',
-    version: 1,
-    terms: {
-      primary: lines('cfg-primary'),
-      synonyms: lines('cfg-synonyms'),
-      extra: lines('cfg-extra'),
-      exclude: lines('cfg-exclude'),
-    },
-    filters: {
-      yearFrom: parseInt(document.getElementById('cfg-yr-from').value)||1900,
-      yearTo: parseInt(document.getElementById('cfg-yr-to').value)||2025,
-      maxPerQuery: parseInt(document.getElementById('cfg-max').value)||500,
-      languages: document.getElementById('cfg-langs').value,
-      geoReq: parseInt(document.getElementById('cfg-geo-req').value)||0,
-    },
-    databases: checked('#chips-academic input,#chips-gov input,#chips-bio input'),
-    scope: checked('#chips-scope input'),
-    missingSources: lines('cfg-missing'),
-    schema: {
-      fields: LIVE_SCHEMA.map(f=>({field:f.field,label:f.label,enabled:f.enabled,keywords:f.keywords})),
-      customFields: customFields.map(f=>({field:f.field,label:f.label,type:f.type,desc:f.desc,enabled:f.enabled,keywords:f.keywords})),
-    },
-  };
+  return {presetName:name||'Untitled preset',version:1,terms:{primary:lines('cfg-primary'),synonyms:lines('cfg-synonyms'),extra:lines('cfg-extra'),exclude:lines('cfg-exclude')},filters:{yearFrom:parseInt(document.getElementById('cfg-yr-from').value)||null,yearTo:parseInt(document.getElementById('cfg-yr-to').value)||null,maxPerQuery:parseInt(document.getElementById('cfg-max').value)||500,languages:document.getElementById('cfg-langs').value,geoReq:parseInt(document.getElementById('cfg-geo-req').value)||0},databases:checked('#chips-academic input,#chips-gov input,#chips-bio input'),scope:checked('#chips-scope input'),missingSources:lines('cfg-missing'),schema:{fields:LIVE_SCHEMA.map(f=>({field:f.field,label:f.label,enabled:f.enabled,keywords:f.keywords})),customFields:customFields.map(f=>({field:f.field,label:f.label,type:f.type,desc:f.desc,enabled:f.enabled,keywords:f.keywords}))}};
 }
-
 function applyPreset(data){
   if(!data||typeof data!=='object'){alert('That file does not look like a SciWide Search preset.');return;}
-
-  const t=data.terms||{};
-  setLines('cfg-primary', t.primary);
-  setLines('cfg-synonyms', t.synonyms);
-  setLines('cfg-extra', t.extra);
-  setLines('cfg-exclude', t.exclude);
-
-  const f=data.filters||{};
-  if(f.yearFrom!=null) document.getElementById('cfg-yr-from').value=f.yearFrom;
-  if(f.yearTo!=null) document.getElementById('cfg-yr-to').value=f.yearTo;
-  if(f.maxPerQuery!=null) document.getElementById('cfg-max').value=f.maxPerQuery;
-  if(f.languages!=null) document.getElementById('cfg-langs').value=f.languages;
-  if(f.geoReq!=null) document.getElementById('cfg-geo-req').value=f.geoReq;
-
-  setChecked('#chips-academic input,#chips-gov input,#chips-bio input', data.databases);
-  setChecked('#chips-scope input', data.scope);
-  setLines('cfg-missing', data.missingSources);
-  renderMissingSources();
-
-  if(data.schema){
-    (data.schema.fields||[]).forEach(fdef=>{
-      const target=LIVE_SCHEMA.find(s=>s.field===fdef.field);
-      if(target){
-        if(fdef.label!=null) target.label=fdef.label;
-        if(fdef.enabled!=null) target.enabled=fdef.enabled;
-        if(fdef.keywords) target.keywords=fdef.keywords;
-      }
-    });
-    if(Array.isArray(data.schema.customFields)){
-      customFields=data.schema.customFields.map(cf=>({
-        field:cf.field, label:cf.label||cf.field, type:cf.type||'string',
-        desc:cf.desc||'Custom field', enabled:cf.enabled!==false,
-        extractFrom:'custom', keywords:cf.keywords||[],
-      }));
-    }
-  }
-
-  if(data.presetName){
-    const nameEl=document.getElementById('preset-name');
-    if(nameEl) nameEl.value=data.presetName;
-  }
-
-  renderSchemaEditor();
-  renderSchemaPreview();
-  renderTable();
-  logMsg(`Preset "${esc(data.presetName||'Untitled')}" loaded.`,'ok');
+  const t=data.terms||{};setLines('cfg-primary',t.primary);setLines('cfg-synonyms',t.synonyms);setLines('cfg-extra',t.extra);setLines('cfg-exclude',t.exclude);
+  const f=data.filters||{};if(f.yearFrom!=null)document.getElementById('cfg-yr-from').value=f.yearFrom;if(f.yearTo!=null)document.getElementById('cfg-yr-to').value=f.yearTo;if(f.maxPerQuery!=null)document.getElementById('cfg-max').value=f.maxPerQuery;if(f.languages!=null)document.getElementById('cfg-langs').value=f.languages;if(f.geoReq!=null)document.getElementById('cfg-geo-req').value=f.geoReq;
+  setChecked('#chips-academic input,#chips-gov input,#chips-bio input',data.databases);setChecked('#chips-scope input',data.scope);setLines('cfg-missing',data.missingSources);renderMissingSources();
+  if(data.schema){(data.schema.fields||[]).forEach(fdef=>{const target=LIVE_SCHEMA.find(s=>s.field===fdef.field);if(target){if(fdef.label!=null)target.label=fdef.label;if(fdef.enabled!=null)target.enabled=fdef.enabled;if(fdef.keywords)target.keywords=fdef.keywords;}});if(Array.isArray(data.schema.customFields))customFields=data.schema.customFields.map(cf=>({field:cf.field,label:cf.label||cf.field,type:cf.type||'string',desc:cf.desc||'Custom field',enabled:cf.enabled!==false,extractFrom:'custom',keywords:cf.keywords||[]}));}
+  if(data.presetName){const el=document.getElementById('preset-name');if(el)el.value=data.presetName;}
+  renderSchemaEditor();renderSchemaPreview();renderTable();logMsg(`Preset "${esc(data.presetName||'Untitled')}" loaded.`,'ok');
 }
+function savePreset(){const name=(document.getElementById('preset-name')?.value||'').trim();if(!name){alert('Give this preset a name first.');return;}const safe=name.replace(/[^a-z0-9_\- ]/gi,'').trim().replace(/\s+/g,'_')||'preset';dlFile(JSON.stringify(serializePreset(name),null,2),`${safe}.json`,'application/json');}
+function loadPresetFile(){document.getElementById('preset-file-input').click();}
+function handlePresetFile(e){const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{try{applyPreset(JSON.parse(ev.target.result));}catch(err){alert('Could not read preset: '+err.message);}};reader.readAsText(file);e.target.value='';}
+async function loadPresetFromUrl(){const url=(document.getElementById('preset-url')?.value||'').trim();if(!url){alert('Enter a URL to a preset .json file.');return;}try{const res=await fetch(url);if(!res.ok)throw new Error(`HTTP ${res.status}`);applyPreset(await res.json());}catch(err){alert('Could not load preset from URL (likely CORS). Download and use "Load from file" instead.\n\n'+err.message);}}
+async function loadBundledPreset(){const path=document.getElementById('bundled-preset-select')?.value;if(!path)return;try{const res=await fetch(path);if(!res.ok)throw new Error(`HTTP ${res.status}`);applyPreset(await res.json());}catch(err){alert('Could not load preset: '+err.message);}}
+function renderMissingSources(){const el=document.getElementById('missing-list');if(!el)return;const items=lines('cfg-missing');el.innerHTML=items.length?items.map(s=>`<div class="missing-item">${esc(s)}</div>`).join(''):'<div class="missing-item" style="opacity:.65">No known gaps listed yet.</div>';}
 
-function savePreset(){
-  const nameEl=document.getElementById('preset-name');
-  const name=(nameEl?.value||'').trim();
-  if(!name){alert('Give this preset a name first — it becomes the filename, and helps others identify it.');return;}
-  const data=serializePreset(name);
-  const safeName=name.replace(/[^a-z0-9_\- ]/gi,'').trim().replace(/\s+/g,'_')||'preset';
-  dlFile(JSON.stringify(data,null,2), `${safeName}.json`, 'application/json');
+// ═══════════════════════════════════════════════════════════════
+// SCREENING UI
+// ═══════════════════════════════════════════════════════════════
+function renderScreeningCounts(){
+  const all=window._SWDRecords||[];
+  const inc=all.filter(r=>getScreening(r).decision==='include').length;
+  const exc=all.filter(r=>getScreening(r).decision==='exclude').length;
+  const maybe=all.filter(r=>getScreening(r).decision==='maybe').length;
+  const un=all.filter(r=>!getScreening(r).decision).length;
+  const el=document.getElementById('screening-counts');
+  if(el)el.innerHTML=`<span class="screen-badge include">${inc} included</span> <span class="screen-badge exclude">${exc} excluded</span> <span class="screen-badge maybe">${maybe} maybe</span> <span class="screen-badge unscreened">${un} unscreened</span>`;
 }
-
-function loadPresetFile(){
-  document.getElementById('preset-file-input').click();
-}
-
-function handlePresetFile(e){
-  const file=e.target.files[0];
-  if(!file)return;
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    try{
-      const data=JSON.parse(ev.target.result);
-      applyPreset(data);
-    }catch(err){
-      alert('Could not read that file as a preset: '+err.message);
-    }
-  };
-  reader.readAsText(file);
-  e.target.value='';
-}
-
-async function loadPresetFromUrl(){
-  const urlEl=document.getElementById('preset-url');
-  const url=(urlEl?.value||'').trim();
-  if(!url){alert('Enter a URL to a preset .json file.');return;}
-  try{
-    const res=await fetch(url);
-    if(!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data=await res.json();
-    applyPreset(data);
-  }catch(err){
-    alert('Could not load a preset from that URL — this is usually because the host does not allow cross-site requests (CORS). Try downloading the file and using "Load preset from file" instead.\n\nDetails: '+err.message);
-  }
-}
-
-async function loadBundledPreset(){
-  const sel=document.getElementById('bundled-preset-select');
-  const path=sel?.value;
-  if(!path)return;
-  try{
-    const res=await fetch(path);
-    if(!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data=await res.json();
-    applyPreset(data);
-  }catch(err){
-    alert('Could not load the example preset: '+err.message);
-  }
-}
-
-function renderMissingSources(){
-  const el=document.getElementById('missing-list');
-  if(!el)return;
-  const items=lines('cfg-missing');
-  el.innerHTML = items.length
-    ? items.map(s=>`<div class="missing-item">${esc(s)}</div>`).join('')
-    : '<div class="missing-item" style="opacity:.65">No known gaps listed yet. Add hard-to-access sources in Configure → "Known gaps", or load a preset that includes them.</div>';
-}
+window.applyScreening=function(key,decision,reasonId){
+  const reason=(document.getElementById(reasonId)?.value||'').trim();
+  const r=(window._SWDRecords||[]).find(rec=>screeningKey(rec)===key);
+  if(r)setScreening(r,decision,reason);
+  renderTable();renderScreeningCounts();
+};
 
 // ═══════════════════════════════════════════════════════════════
 // APP / UI
 // ═══════════════════════════════════════════════════════════════
 window._SWDRecords=[];
-let isRunning=false,abortCtrl=null,midTerms=[],currentCat='all';
+let isRunning=false,abortCtrl=null,midTerms=[],currentCat='all',screenFilter='';
 let stats={queries:0,raw:0,dedup:0,records:0,noloc:0,errors:0,skipped:0};
 const catCounts={A:0,B:0,C:0,D:0,E:0,F:0};
 const STUB_DBS=new Set(['unpaywall','base','eppo','cabi','usda','jki','naro','caas','rda','bold','ncbi','lens']);
@@ -602,52 +476,33 @@ document.getElementById('btn-run').addEventListener('click',startSearch);
 document.getElementById('btn-stop').addEventListener('click',()=>{if(abortCtrl)abortCtrl.abort();});
 document.getElementById('btn-add-term').addEventListener('click',addMidTerm);
 document.getElementById('mid-term').addEventListener('keydown',e=>{if(e.key==='Enter')addMidTerm();});
-document.getElementById('btn-apply-yr').addEventListener('click',()=>{
-  const f=document.getElementById('mid-yr-from').value,t=document.getElementById('mid-yr-to').value;
-  if(f)document.getElementById('cfg-yr-from').value=f;
-  if(t)document.getElementById('cfg-yr-to').value=t;
-  logMsg(`Year range updated: ${f||'—'}–${t||'—'}`,'warn');
-});
-document.getElementById('btn-add-db').addEventListener('click',()=>{
-  const db=document.getElementById('mid-db-select').value;if(!db)return;
-  logMsg(`Database queued: ${DB_LABELS[db]||db}`,'ok');
-  const el=document.querySelector(`input[value="${db}"]`);if(el)el.checked=true;
-});
+document.getElementById('btn-apply-yr').addEventListener('click',()=>{const f=document.getElementById('mid-yr-from').value,t=document.getElementById('mid-yr-to').value;if(f)document.getElementById('cfg-yr-from').value=f;if(t)document.getElementById('cfg-yr-to').value=t;logMsg(`Year range updated: ${f||'—'}–${t||'—'}`,'warn');});
+document.getElementById('btn-add-db').addEventListener('click',()=>{const db=document.getElementById('mid-db-select').value;if(!db)return;logMsg(`Database queued: ${DB_LABELS[db]||db}`,'ok');const el=document.querySelector(`input[value="${db}"]`);if(el)el.checked=true;});
 document.getElementById('res-search').addEventListener('input',renderTable);
 document.getElementById('res-verif').addEventListener('change',renderTable);
 document.getElementById('res-sort').addEventListener('change',renderTable);
-document.querySelectorAll('.cat-filter-btn').forEach(btn=>btn.addEventListener('click',()=>{
-  document.querySelectorAll('.cat-filter-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');currentCat=btn.dataset.cat;renderTable();
-}));
+document.getElementById('res-screen-filter')?.addEventListener('change',e=>{screenFilter=e.target.value;renderTable();});
+document.querySelectorAll('.cat-filter-btn').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.cat-filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');currentCat=btn.dataset.cat;renderTable();}));
 const pwSearch=document.getElementById('paywall-search');
 if(pwSearch)pwSearch.addEventListener('input',renderPaywallPanel);
-
 document.getElementById('kw-modal-cancel').addEventListener('click',()=>{document.getElementById('kw-modal').style.display='none';});
 document.getElementById('kw-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.style.display='none';});
 document.getElementById('btn-add-custom-field').addEventListener('click',()=>SWDSchema.addCustomField());
-
-// Presets wiring
 document.getElementById('btn-save-preset').addEventListener('click',savePreset);
 document.getElementById('btn-load-preset-file').addEventListener('click',loadPresetFile);
 document.getElementById('preset-file-input').addEventListener('change',handlePresetFile);
 document.getElementById('btn-load-preset-url').addEventListener('click',loadPresetFromUrl);
 document.getElementById('btn-load-bundled-preset').addEventListener('click',loadBundledPreset);
-
-// Known-gaps live update
 const missingTa=document.getElementById('cfg-missing');
-if(missingTa) missingTa.addEventListener('input',renderMissingSources);
+if(missingTa)missingTa.addEventListener('input',renderMissingSources);
 
-// Init schema UI + missing sources
-renderSchemaEditor();
-renderSchemaPreview();
-renderMissingSources();
+renderSchemaEditor();renderSchemaPreview();renderMissingSources();
 
-// ── Search ────────────────────────────────────────────────────
+// ── Search ──────────────────────────────────────────────────
 async function startSearch(){
   if(isRunning)return;
   isRunning=true;abortCtrl=new AbortController();
-  window._SWDRecords=[];resetSeen();resetEngineCache();
+  window._SWDRecords=[];resetSeen();resetEngineCache();clearSearchLog();_screening.clear();
   stats={queries:0,raw:0,dedup:0,records:0,noloc:0,errors:0,skipped:0};
   Object.keys(catCounts).forEach(k=>catCounts[k]=0);
   document.getElementById('log-box').innerHTML='';
@@ -658,16 +513,7 @@ async function startSearch(){
   const s=getSettings();
   const allTerms=[...s.primaryTerms,...s.synonymTerms,...s.extraTerms,...midTerms].filter(Boolean);
   const signal=abortCtrl.signal;
-
-  if(!allTerms.length){
-    logMsg('No search terms entered. Add at least one term in Configure → "Search terms", or load a preset.','err');
-    setStatus('stopped','No terms');
-    setProgress(null,'No search terms');
-    isRunning=false;
-    document.getElementById('btn-run').disabled=false;
-    document.getElementById('btn-stop').disabled=true;
-    return;
-  }
+  if(!allTerms.length){logMsg('No search terms entered. Add terms in Configure, or load a preset.','err');setStatus('stopped','No terms');setProgress(null,'No terms');isRunning=false;document.getElementById('btn-run').disabled=false;document.getElementById('btn-stop').disabled=true;return;}
 
   const searchDBs=s.databases.filter(db=>!STUB_DBS.has(db)&&!ONCE_DBS.has(db));
   const occDBs=s.databases.filter(db=>ONCE_DBS.has(db));
@@ -676,8 +522,8 @@ async function startSearch(){
   let done=0;
 
   logMsg(`Search started — ${searchDBs.length} search DBs × ${allTerms.length} terms + ${occDBs.length} occurrence DBs`);
-  if(stubDBs.length)logMsg(`${stubDBs.length} institutional DBs (stub): ${stubDBs.map(d=>DB_LABELS[d]||d).join(', ')}`,'warn');
-  logMsg(`Year range: ${s.yearFrom}–${s.yearTo}`);
+  if(stubDBs.length)logMsg(`Stubs (not yet wired): ${stubDBs.map(d=>DB_LABELS[d]||d).join(', ')}`,'warn');
+  if(s.yearFrom||s.yearTo)logMsg(`Year range: ${s.yearFrom||'open'}–${s.yearTo||'open'}`);
 
   for(const db of occDBs){
     if(signal.aborted)break;
@@ -685,7 +531,7 @@ async function startSearch(){
     try{
       const hits=await engineQuery(db,'',s,signal);
       if(hits===null){logMsg(`  ⚠ ${label} unreachable`,'warn');stats.skipped++;}
-      else{stats.raw+=hits.length;let n=0;for(const h of hits)for(const r of processHit(h)){if(isDuplicate(r))continue;window._SWDRecords.push(r);n++;stats.dedup++;if(r.category==='E')stats.noloc++;else{stats.records++;catCounts[r.category]=(catCounts[r.category]||0)+1;}}logMsg(`  → ${hits.length} occurrences · ${n} new`,hits.length?'ok':'warn');}
+      else{stats.raw+=hits.length;let n=0,dupes=0;for(const h of hits)for(const r of processHit(h)){if(isDuplicate(r)){dupes++;continue;}window._SWDRecords.push(r);n++;stats.dedup++;if(r.category==='E')stats.noloc++;else{stats.records++;catCounts[r.category]=(catCounts[r.category]||0)+1;}}logSearch(db,'',hits.length,n,dupes);logMsg(`  → ${hits.length} occurrences · ${n} new`,hits.length?'ok':'warn');}
     }catch(e){if(e.name==='AbortError')break;stats.errors++;logMsg(`  ✖ ${label}: ${e.message}`,'err');}
     updateStats();done++;setProgress((done/total)*100,label);
   }
@@ -699,7 +545,7 @@ async function startSearch(){
       try{
         const hits=await engineQuery(db,term,s,signal);
         if(hits===null){logMsg(`  ⚠ ${label} unreachable — skipped`,'warn');stats.skipped++;}
-        else{stats.raw+=hits.length;let n=0;for(const h of hits)for(const r of processHit(h)){if(isDuplicate(r))continue;window._SWDRecords.push(r);n++;stats.dedup++;if(r.category==='E')stats.noloc++;else{stats.records++;catCounts[r.category]=(catCounts[r.category]||0)+1;}}if(hits.length===0)logMsg(`  → 0 results`,'warn');else logMsg(`  → ${hits.length} hits · ${n} new · ${hits.length-n} dupes`,'ok');}
+        else{stats.raw+=hits.length;let n=0,dupes=0;for(const h of hits)for(const r of processHit(h)){if(isDuplicate(r)){dupes++;continue;}window._SWDRecords.push(r);n++;stats.dedup++;if(r.category==='E')stats.noloc++;else{stats.records++;catCounts[r.category]=(catCounts[r.category]||0)+1;}}logSearch(db,term,hits.length,n,dupes);if(hits.length===0)logMsg(`  → 0 results`,'warn');else logMsg(`  → ${hits.length} hits · ${n} new · ${dupes} dupes`,'ok');}
       }catch(e){if(e.name==='AbortError')break;stats.errors++;logMsg(`  ✖ ${label}: ${e.message}`,'err');}
       updateStats();done++;setProgress((done/total)*100,`${label} · "${term.slice(0,28)}"`);
     }
@@ -709,24 +555,14 @@ async function startSearch(){
   setProgress(stopped?null:100,stopped?'Stopped':'Complete');
   setStatus(stopped?'stopped':'done',stopped?'Stopped':'Done');
   logMsg(stopped?`Stopped. ${window._SWDRecords.length} records.`:`Complete — ${window._SWDRecords.length} records · ${stats.errors} errors · ${stats.skipped} skipped`,stopped?'warn':'ok');
-  isRunning=false;
-  document.getElementById('btn-run').disabled=false;
-  document.getElementById('btn-stop').disabled=true;
+  isRunning=false;document.getElementById('btn-run').disabled=false;document.getElementById('btn-stop').disabled=true;
   const badge=document.getElementById('badge-results');badge.textContent=window._SWDRecords.length;badge.hidden=!window._SWDRecords.length;
   const pwBadge=document.getElementById('badge-paywall');if(pwBadge){const n=getPaywalled().length;pwBadge.textContent=n;pwBadge.hidden=!n;}
-  renderTable();renderPaywallPanel();
+  renderTable();renderPaywallPanel();renderScreeningCounts();
   if(!stopped)switchTab('results');
 }
 
-function addMidTerm(){
-  const inp=document.getElementById('mid-term'),t=inp.value.trim();if(!t)return;
-  midTerms.push(t);inp.value='';
-  const chip=document.createElement('label');chip.className='chip';chip.style.cursor='pointer';
-  chip.innerHTML=`${esc(t)} <span style="opacity:.5;margin-left:4px">×</span>`;
-  chip.addEventListener('click',()=>{midTerms=midTerms.filter(x=>x!==t);chip.remove();});
-  document.getElementById('mid-term-list').appendChild(chip);
-  logMsg(`Added term: "${t}"`);
-}
+function addMidTerm(){const inp=document.getElementById('mid-term'),t=inp.value.trim();if(!t)return;midTerms.push(t);inp.value='';const chip=document.createElement('label');chip.className='chip';chip.style.cursor='pointer';chip.innerHTML=`${esc(t)} <span style="opacity:.5;margin-left:4px">×</span>`;chip.addEventListener('click',()=>{midTerms=midTerms.filter(x=>x!==t);chip.remove();});document.getElementById('mid-term-list').appendChild(chip);logMsg(`Added term: "${t}"`);}
 
 function renderTable(){
   const active=getActiveSchema();
@@ -736,6 +572,7 @@ function renderTable(){
   let data=(window._SWDRecords||[]).filter(r=>{
     if(currentCat!=='all'&&r.category!==currentCat)return false;
     if(v&&r.verification_status!==v)return false;
+    if(screenFilter){const sc=getScreening(r).decision;if(screenFilter==='unscreened'&&sc)return false;if(screenFilter!=='unscreened'&&sc!==screenFilter)return false;}
     if(q){const h=active.map(s=>String(r[s.field]||'')).join(' ').toLowerCase();if(!h.includes(q))return false;}
     return true;
   });
@@ -745,25 +582,28 @@ function renderTable(){
   if(sort==='verif')data.sort((a,b)=>(a.verification_status||'').localeCompare(b.verification_status||''));
 
   const thead=document.getElementById('results-thead');
-  if(thead)thead.innerHTML='<tr>'+active.map(s=>`<th>${esc(s.label||s.field)}</th>`).join('')+'</tr>';
+  if(thead)thead.innerHTML='<tr>'+active.map(s=>`<th>${esc(s.label||s.field)}</th>`).join('')+'<th>Screen</th></tr>';
 
   const tbody=document.getElementById('results-tbody');
-  if(!data.length){
-    const cols=active.length||1;
-    tbody.innerHTML=`<tr class="empty-row"><td colspan="${cols}">${window._SWDRecords.length===0?'Run a search to see results.':'No records match the filter.'}</td></tr>`;
-    document.getElementById('table-footer').textContent='';return;
-  }
+  if(!data.length){tbody.innerHTML=`<tr class="empty-row"><td colspan="${active.length+1}">${window._SWDRecords.length===0?'Run a search to see results.':'No records match the filter.'}</td></tr>`;document.getElementById('table-footer').textContent='';return;}
+
   const MAX=500;
   tbody.innerHTML=data.slice(0,MAX).map(r=>{
-    return '<tr>'+active.map(s=>{
+    const sc=getScreening(r);
+    const key=screeningKey(r);
+    const rId=`sr-${key.slice(-8)}-${Math.random().toString(36).slice(2,6)}`;
+    const screenCell=`<td class="screen-cell"><div class="screen-btns"><button class="screen-btn ${sc.decision==='include'?'active-include':''}" onclick="applyScreening('${esc(key)}','include','${rId}')">✓</button><button class="screen-btn ${sc.decision==='maybe'?'active-maybe':''}" onclick="applyScreening('${esc(key)}','maybe','${rId}')">?</button><button class="screen-btn ${sc.decision==='exclude'?'active-exclude':''}" onclick="applyScreening('${esc(key)}','exclude','${rId}')">✗</button></div><input type="text" id="${rId}" class="screen-reason-input" value="${esc(sc.reason)}" placeholder="reason" /></td>`;
+    return `<tr class="${sc.decision?'row-'+sc.decision:''}">`+active.map(s=>{
       const val=r[s.field];
       if(s.field==='category')return `<td><span class="cat-pill cat-${(val||'e').toLowerCase()}">${val||'?'}</span></td>`;
       if(s.field==='verification_status')return `<td><span class="verif-badge ${VERIF_CLASS[val]||'verif-secondary'}" style="font-size:10px">${esc(val||'')}</span></td>`;
+      if(s.field==='screening_decision'){const sc2=getScreening(r);return `<td><span class="${SCREEN_CLASS[sc2.decision]||'screen-badge unscreened'}">${esc(sc2.decision||'—')}</span></td>`;}
+      if(s.field==='screening_reason'){const sc2=getScreening(r);return `<td style="font-size:11px;color:var(--ink-3)">${esc(sc2.reason||'')}</td>`;}
       if(s.field==='doi'&&val&&val!=='not reported')return `<td><a class="doi-link" href="https://doi.org/${val}" target="_blank" rel="noopener">DOI →</a></td>`;
       if(s.field==='url'&&val&&val!=='not reported')return `<td><a class="doi-link" href="${esc(val)}" target="_blank" rel="noopener">URL →</a></td>`;
       if(s.field==='full_citation')return `<td class="truncate" title="${esc(String(val||''))}">${esc(String(val||'').split('(')[0].trim().slice(0,40))}</td>`;
       return `<td class="truncate">${esc(String(val||'—'))}</td>`;
-    }).join('')+'</tr>';
+    }).join('')+screenCell+'</tr>';
   }).join('');
   document.getElementById('table-footer').textContent=`Showing ${Math.min(data.length,MAX)} of ${data.length} records${data.length>MAX?` (first ${MAX} shown)`:''}`;
 }
