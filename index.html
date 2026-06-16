@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SciWide Search — Systematic Literature &amp; Occurrence Search</title>
+  <title>SciWide Search — Systematic Literature &amp; Scientific Search</title>
   <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
   <link rel="stylesheet" href="css/style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -333,6 +333,10 @@
       <div class="export-card"><div class="export-icon">&#x2B07;</div><div class="export-name">Excluded records CSV</div><div class="export-desc">Records marked &ldquo;exclude&rdquo; with your reasons.</div><button class="btn btn-ghost" onclick="SWDExportFn.screened('exclude')">Download excluded CSV</button></div>
       <div class="export-card"><div class="export-icon">&#x2B07;</div><div class="export-name">Schema (.json)</div><div class="export-desc">Export your schema config to reload or share.</div><button class="btn btn-ghost" onclick="SWDExportFn.schema()">Download schema</button></div>
       <div class="export-card"><div class="export-icon">&#x2B07;</div><div class="export-name">Known gaps (.txt)</div><div class="export-desc">Hard-to-access sources for your methods section.</div><button class="btn btn-ghost" onclick="SWDExportFn.missing()">Download TXT</button></div>
+      <div class="export-card"><div class="export-icon">&#x2B07;</div><div class="export-name">EndNoteXML</div><div class="export-desc">Native EndNote .xml format. Import directly into EndNote X9+.</div><button class="btn btn-ghost" onclick="SWDExportFn.endnotexml()">Download .xml</button></div>
+      <div class="export-card"><div class="export-icon">&#x2B07;</div><div class="export-name">Custom delimiter</div><div class="export-desc">Tab, semicolon, or pipe-delimited. Choose options below.</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0"><select id="custom-delim" style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:var(--radius);background:var(--paper)"><option value="tab">Tab (.tsv)</option><option value="semicolon">Semicolon</option><option value="pipe">Pipe |</option></select><select id="custom-quote" style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:var(--radius);background:var(--paper)"><option value="yes">Quote fields</option><option value="none">No quoting</option></select><select id="custom-header" style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:var(--radius);background:var(--paper)"><option value="yes">With header</option><option value="no">No header</option></select></div><button class="btn btn-ghost" onclick="SWDExportFn.delimited()">Download</button></div>
+      <div class="export-card"><div class="export-icon">&#x2B07;</div><div class="export-name">Markdown summary</div><div class="export-desc">Session overview with category breakdown, top countries, and included records table. Ready for Obsidian, Notion, or GitHub.</div><button class="btn btn-ghost" onclick="SWDExportFn.markdown()">Download .md</button></div>
+      <div class="export-card" style="opacity:.6;border-style:dashed"><div class="export-icon">&#x23F3;</div><div class="export-name">PDF matching <span style="font-size:10px;background:var(--paper);padding:1px 5px;border-radius:4px;border:1px solid var(--border);margin-left:4px">coming soon</span></div><div class="export-desc">Match your local PDF folder to records by DOI in the filename. Session-only, no upload needed. Planned for a future release.</div><button class="btn btn-ghost" disabled style="opacity:.5;cursor:not-allowed">Not yet available</button></div>
     </div>
 
     <div class="export-request-card">
