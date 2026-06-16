@@ -10,27 +10,17 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet" />
   <style>
-    /* ── Paywall panel ── */
     .paywall-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:1rem}.paywall-toolbar input{flex:1;min-width:200px}.paywall-count{font-size:12px;font-family:var(--mono);color:var(--ink-3);white-space:nowrap}.paywall-actions-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem}.paywall-list{display:flex;flex-direction:column;gap:0}.paywall-row{display:flex;gap:12px;padding:14px 16px;border:1px solid var(--border);border-top:none;background:var(--surface)}.paywall-row:first-child{border-top:1px solid var(--border);border-radius:var(--radius) var(--radius) 0 0}.paywall-row:last-child{border-radius:0 0 var(--radius) var(--radius)}.paywall-row:only-child{border-radius:var(--radius);border-top:1px solid var(--border)}.paywall-row:hover{background:var(--paper)}.paywall-index{font-family:var(--mono);font-size:12px;color:var(--ink-3);min-width:28px;padding-top:2px}.paywall-body{flex:1;min-width:0}.paywall-title{font-size:13.5px;font-weight:500;color:var(--ink);margin-bottom:4px;line-height:1.45}.paywall-meta{font-size:12px;color:var(--ink-3);margin-bottom:8px}.paywall-doi{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}.doi-code{font-family:var(--mono);font-size:12px;color:var(--accent);background:var(--paper);border:1px solid var(--border);padding:3px 8px;border-radius:var(--radius);transition:background .25s;cursor:text;user-select:all}.paywall-copy{font-size:11px;padding:3px 10px}.paywall-actions{display:flex;gap:10px;flex-wrap:wrap}.paywall-action-link{font-size:12px;color:var(--accent);text-decoration:none;padding:2px 0;border-bottom:1px solid transparent}.paywall-action-link:hover{border-bottom-color:var(--accent)}.paywall-empty{padding:3rem;text-align:center;font-size:13px;color:var(--ink-3)}.paywall-info-box{background:var(--accent-lt);border:1px solid var(--accent);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin-bottom:1.25rem;font-size:13px;color:var(--ink-2);line-height:1.7}.paywall-info-box strong{color:var(--ink);font-weight:600}
-    /* ── Schema editor ── */
     .schema-editor-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface);margin-bottom:1.5rem}.schema-editor-table{width:100%;border-collapse:collapse;font-size:12.5px}.schema-editor-table th{padding:9px 12px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);background:var(--paper);border-bottom:1px solid var(--border);white-space:nowrap}.schema-editor-table td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle}.schema-editor-table tr:last-child td{border-bottom:none}.schema-editor-table tr.schema-row-disabled td{opacity:.45}.schema-toggle input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}.schema-label-input{width:160px;padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--paper);color:var(--ink)}.schema-label-input:focus{outline:none;border-color:var(--accent)}.schema-kw-btn{font-size:11px;padding:3px 10px;white-space:nowrap}.schema-add-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1.5rem}.schema-add-section h3{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);margin-bottom:1rem}.schema-add-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}.schema-actions-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.5rem}.schema-info{background:#f0edf7;border:1px solid #b8a8d8;border-radius:var(--radius-lg);padding:1rem 1.25rem;font-size:13px;color:var(--ink-2);line-height:1.7;margin-bottom:1.5rem}.schema-info strong{color:var(--ink)}
-    /* ── Modals ── */
     .kw-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center}.kw-modal-box{background:var(--surface);border-radius:var(--radius-lg);padding:1.5rem;width:480px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.18)}.kw-modal-box h3{font-size:14px;font-weight:600;margin-bottom:.75rem;color:var(--ink)}.kw-modal-hint{font-size:12px;color:var(--ink-3);margin-bottom:.5rem}.kw-modal-ta{width:100%;height:220px;font-family:var(--mono);font-size:12px;padding:8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--paper);color:var(--ink);resize:vertical}.kw-modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:1rem}
-    /* ── Presets ── */
     .preset-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1rem}.preset-card h3{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);margin-bottom:.875rem}.preset-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.preset-name-input{flex:1;min-width:180px;padding:6px 10px;font-size:13px;border:1px solid var(--border);border-radius:var(--radius);background:var(--paper);color:var(--ink)}.preset-name-input:focus{outline:none;border-color:var(--accent)}.preset-url-input{flex:1;min-width:220px;padding:6px 10px;font-size:13px;border:1px solid var(--border);border-radius:var(--radius);background:var(--paper);color:var(--ink);font-family:var(--mono)}.preset-hint{font-size:11.5px;color:var(--ink-3);margin-top:.5rem;line-height:1.6}
-    /* ── Screening ── */
     .screen-cell{min-width:140px;padding:6px 8px!important}.screen-btns{display:flex;gap:4px;margin-bottom:4px}.screen-btn{width:28px;height:24px;border:1px solid var(--border);border-radius:var(--radius);background:var(--paper);cursor:pointer;font-size:13px;line-height:1;transition:all .1s}.screen-btn:hover{border-color:var(--accent)}.screen-btn.active-include{background:#d4edda;border-color:#28a745;color:#155724}.screen-btn.active-maybe{background:#fff3cd;border-color:#ffc107;color:#856404}.screen-btn.active-exclude{background:#f8d7da;border-color:#dc3545;color:#721c24}.screen-reason-input{width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:var(--radius);background:var(--paper);color:var(--ink-3)}.screen-badge{display:inline-block;font-size:10px;padding:1px 6px;border-radius:8px;font-weight:600;white-space:nowrap}.screen-badge.include{background:#d4edda;color:#155724}.screen-badge.exclude{background:#f8d7da;color:#721c24}.screen-badge.maybe{background:#fff3cd;color:#856404}.screen-badge.unscreened{background:var(--paper);color:var(--ink-3);border:1px solid var(--border)}.row-include{background:#f8fff9}.row-exclude{background:#fff8f8;opacity:.75}.row-maybe{background:#fffef0}#screening-counts{display:flex;gap:8px;flex-wrap:wrap;padding:.5rem 0;font-size:12px;align-items:center}
-    /* ── About / donation ── */
     .donate-card{background:#f0edf7;border:1px solid #b8a8d8;border-radius:var(--radius-lg);padding:1.5rem;margin-bottom:1.5rem}.donate-card h2{font-size:15px;font-weight:700;color:#4b3268;margin-bottom:.5rem}.donate-card p{font-size:13.5px;color:var(--ink-2);line-height:1.75;margin-bottom:1rem}.donate-btn{display:inline-block;background:#4b3268;color:#f5c430;font-weight:700;font-size:14px;padding:.6rem 1.5rem;border-radius:var(--radius-lg);text-decoration:none;letter-spacing:.03em;transition:background .15s}.donate-btn:hover{background:#3d2856}.citation-box{font-family:var(--mono);font-size:12.5px;background:var(--paper);border:1px solid var(--border);border-radius:var(--radius);padding:.75rem 1rem;color:var(--ink-2);line-height:1.6;margin-bottom:.5rem;user-select:all}
-    /* ── Export request form ── */
     .export-request-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;margin-top:1.5rem}.export-request-card h3{font-size:13px;font-weight:600;color:var(--ink-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.75rem}.export-request-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}.export-request-grid input,.export-request-grid textarea{padding:6px 10px;font-size:13px;border:1px solid var(--border);border-radius:var(--radius);background:var(--paper);color:var(--ink);width:100%}.export-request-grid textarea{grid-column:1/-1;height:80px;resize:vertical}
-
     .nav-donate{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;margin-left:8px;font-size:12px;font-weight:600;color:#f5c430;background:#4b3268;border-radius:var(--radius-lg);text-decoration:none;white-space:nowrap;transition:background .15s;}.nav-donate:hover{background:#3d2856;}
   </style>
 </head>
 <body>
-
-<!-- Keyword modal -->
 <div class="kw-modal" id="kw-modal" role="dialog" aria-modal="true">
   <div class="kw-modal-box">
     <h3 id="kw-modal-title">Edit keywords</h3>
@@ -42,9 +32,7 @@
     </div>
   </div>
 </div>
-
 <input type="file" id="preset-file-input" accept=".json" style="display:none" />
-
 <header class="app-header">
   <div class="header-inner">
     <div class="header-brand">
@@ -66,9 +54,7 @@
     </nav>
   </div>
 </header>
-
 <main class="app-main">
-
   <!-- CONFIGURE -->
   <section class="tab-panel active" id="panel-config">
     <div class="panel-title">
@@ -110,7 +96,6 @@
         </div>
       </div>
     </div>
-
     <div class="config-grid">
       <div class="config-card">
         <h2>Search terms</h2>
@@ -122,7 +107,6 @@
         <div class="field"><label for="cfg-exclude">Exclude terms <span class="label-hint">(one per line)</span></label><textarea id="cfg-exclude" rows="2" placeholder="e.g. Drosophila melanogaster"></textarea></div>
         <div class="field"><label for="cfg-missing">Known gaps &amp; hard-to-access sources <span class="label-hint">(one per line &mdash; exported to your methods section)</span></label><textarea id="cfg-missing" rows="4" placeholder="e.g. NARO Japan grey literature 1985&#8211;1999"></textarea></div>
       </div>
-
       <div class="config-card">
         <h2>Databases</h2>
         <div class="db-group">
@@ -162,7 +146,6 @@
           </div>
         </div>
       </div>
-
       <div class="config-card">
         <h2>Filters &amp; scope</h2>
         <div class="field-row">
@@ -196,7 +179,6 @@
           </div>
         </div>
       </div>
-
       <div class="config-card config-actions">
         <button class="btn btn-primary" id="btn-start-from-config">Start search &rarr;</button>
         <button class="btn btn-ghost" id="btn-reset-config">Reset defaults</button>
@@ -204,7 +186,6 @@
       </div>
     </div>
   </section>
-
   <!-- SCHEMA -->
   <section class="tab-panel" id="panel-schema">
     <div class="panel-title"><h1>Schema editor</h1><p>Control which fields appear in results and exports. Rename columns, edit extraction keywords, or add custom fields.</p></div>
@@ -229,7 +210,6 @@
       <div style="margin-top:.75rem"><button class="btn btn-primary" id="btn-add-custom-field">Add field &rarr;</button></div>
     </div>
   </section>
-
   <!-- RUN -->
   <section class="tab-panel" id="panel-run">
     <div class="panel-title"><h1>Search engine</h1><p>Live progress across all configured databases. Inject new terms or adjust filters without restarting.</p></div>
@@ -278,7 +258,6 @@
       </div>
     </div>
   </section>
-
   <!-- RESULTS -->
   <section class="tab-panel" id="panel-results">
     <div class="panel-title"><h1>Results</h1><p>Columns reflect your active schema. Use the <strong>Screen</strong> column to include ✓, flag ?, or exclude ✗ each record for your systematic review.</p></div>
@@ -309,7 +288,6 @@
     <div class="table-footer" id="table-footer"></div>
     <div class="missing-sources-section"><h2>Known gaps &amp; hard-to-access sources</h2><div id="missing-list" class="missing-list"></div></div>
   </section>
-
   <!-- PAYWALLED -->
   <section class="tab-panel" id="panel-paywall">
     <div class="panel-title"><h1>Paywalled DOIs</h1><p>Every paper found behind a paywall, with DOI and direct access options.</p></div>
@@ -321,7 +299,6 @@
     </div>
     <div class="paywall-list" id="paywall-list"><div class="paywall-empty">Run a search &mdash; paywalled papers appear here automatically.</div></div>
   </section>
-
   <!-- EXPORT -->
   <section class="tab-panel" id="panel-export">
     <div class="panel-title"><h1>Export</h1><p>All exports reflect your active schema. Screening decisions are included in CSV, JSON, and RIS exports.</p></div>
@@ -342,7 +319,6 @@
       <div class="export-card"><div class="export-icon">&#x2B07;</div><div class="export-name">Markdown summary</div><div class="export-desc">Session overview with category breakdown, top countries, and included records table. Ready for Obsidian, Notion, or GitHub.</div><button class="btn btn-ghost" onclick="SWDExportFn.markdown()">Download .md</button></div>
       <div class="export-card" style="opacity:.6;border-style:dashed"><div class="export-icon">&#x23F3;</div><div class="export-name">PDF matching <span style="font-size:10px;background:var(--paper);padding:1px 5px;border-radius:4px;border:1px solid var(--border);margin-left:4px">coming soon</span></div><div class="export-desc">Match your local PDF folder to records by DOI in the filename. Session-only, no upload needed. Planned for a future release.</div><button class="btn btn-ghost" disabled style="opacity:.5;cursor:not-allowed">Not yet available</button></div>
     </div>
-
     <div class="export-request-card">
       <h3>Need a different export format?</h3>
       <p style="font-size:13px;color:var(--ink-3);margin-bottom:.75rem">Fill in this form and click the button to open a pre-filled email requesting the format. We&rsquo;ll assess feasibility and add it if possible.</p>
@@ -354,10 +330,8 @@
       </div>
       <button class="btn btn-primary" style="margin-top:.75rem" onclick="openExportRequest()">Open email request &rarr;</button>
     </div>
-
     <div class="schema-section"><h2>Active schema preview</h2><table class="schema-table"><thead><tr><th>Field key</th><th>Type</th><th>Label &amp; description</th></tr></thead><tbody id="schema-tbody"></tbody></table></div>
   </section>
-
   <!-- ABOUT -->
   <section class="tab-panel" id="panel-about">
     <div class="panel-title"><h1>About SciWide Search</h1></div>
@@ -366,16 +340,11 @@
         <div class="donate-card">
           <h2>&#x2665; Support this project</h2>
           <p>SciWide Search is free to use and will stay that way. If it saved you time on a literature search, a small donation helps cover the time spent maintaining it, fixing things when external APIs change, and building the features people ask for.</p>
-          <a class="donate-btn" href="https://www.paypal.com/donate/?hosted_button_id=4AMEK5KTQHHR4" target="_blank" rel="noopener">Donate via PayPal &rarr;</a> <span style="font-size:11px;color:#7a6090;display:block;margin-top:.4rem">Default amount: 2&nbsp;EUR &mdash; change freely on the PayPal page.</span>
+          <a class="donate-btn" href="https://www.paypal.com/donate/?hosted_button_id=4AMEK5KTQHHR4" target="_blank" rel="noopener">Donate via PayPal &rarr;</a>
+          <span style="font-size:11px;color:#7a6090;display:block;margin-top:.4rem">Default amount: 1&nbsp;EUR &mdash; change freely on the PayPal page.</span>
         </div>
-        <div class="about-section">
-          <h2>Purpose</h2>
-          <p>SciWide Search is an open-source tool for systematically collecting and structuring records from academic literature, grey literature, and biodiversity databases. It supports PRISMA-style systematic reviews, meta-analyses, and global distribution mapping across any research topic. Enter any search terms &mdash; it is not limited to any specific organism or field.</p>
-        </div>
-        <div class="about-section">
-          <h2>Systematic review support</h2>
-          <p>The tool is designed to fit a full PRISMA workflow. The <strong>Search log</strong> export produces a methods-ready query record showing every database queried, every search term, hit counts, and deduplication outcomes. The <strong>Screen</strong> column in Results lets you flag each record as Include, Exclude, or Maybe with a free-text reason. Included and excluded sets export separately as CSV. All screening decisions are also embedded in the CSV, JSON, and RIS exports.</p>
-        </div>
+        <div class="about-section"><h2>Purpose</h2><p>SciWide Search is an open-source tool for systematically collecting and structuring records from academic literature, grey literature, and biodiversity databases. It supports PRISMA-style systematic reviews, meta-analyses, and global distribution mapping across any research topic. Enter any search terms &mdash; it is not limited to any specific organism or field.</p></div>
+        <div class="about-section"><h2>Systematic review support</h2><p>The tool is designed to fit a full PRISMA workflow. The <strong>Search log</strong> export produces a methods-ready query record showing every database queried, every search term, hit counts, and deduplication outcomes. The <strong>Screen</strong> column in Results lets you flag each record as Include, Exclude, or Maybe with a free-text reason. Included and excluded sets export separately as CSV. All screening decisions are also embedded in the CSV, JSON, and RIS exports.</p></div>
         <div class="about-section">
           <h2>Output categories</h2>
           <dl class="cat-dl">
@@ -387,23 +356,10 @@
             <dt><span class="cat-pill cat-f">F</span> Pre-1980 historical records</dt><dd>Historical records before 1980.</dd>
           </dl>
         </div>
-        <div class="about-section">
-          <h2>Cite this tool</h2>
-          <div class="citation-box">Ebrahimi, M. (2026). SciWide Search [Software]. https://github.com/mehregan59/Sc_wide_Search</div>
-          <button class="btn btn-ghost" onclick="copyCitation(this)">Copy citation</button>
-        </div>
-        <div class="about-section">
-          <h2>Creator</h2>
-          <p><strong>Mehregan Ebrahimi</strong><br>GitHub: <a href="https://github.com/mehregan59" target="_blank" rel="noopener">github.com/mehregan59</a><br>Email: <em>[contact coming soon]</em></p>
-        </div>
-        <div class="about-section">
-          <h2>License</h2>
-          <p>Released under the <strong>MIT License</strong>. Free to use, modify, and distribute. The author reserves the right to release future versions under a different license. See <a href="https://github.com/mehregan59/Sc_wide_Search/blob/main/LICENSE" target="_blank" rel="noopener">LICENSE</a>.</p>
-        </div>
-        <div class="about-section">
-          <h2>APIs used</h2>
-          <p>All public and free: OpenAlex, Europe PMC, PubMed (via Europe PMC), Crossref, arXiv, bioRxiv / medRxiv (via Europe PMC), GBIF, iNaturalist, Zenodo. Institutional databases are listed as stubs &mdash; connectors are added as CORS feasibility is confirmed.</p>
-        </div>
+        <div class="about-section"><h2>Cite this tool</h2><div class="citation-box">Ebrahimi, M. (2026). SciWide Search [Software]. https://github.com/mehregan59/Sc_wide_Search</div><button class="btn btn-ghost" onclick="copyCitation(this)">Copy citation</button></div>
+        <div class="about-section"><h2>Creator</h2><p><strong>Mehregan Ebrahimi</strong><br>GitHub: <a href="https://github.com/mehregan59" target="_blank" rel="noopener">github.com/mehregan59</a><br>Email: <em>[contact coming soon]</em></p></div>
+        <div class="about-section"><h2>License</h2><p>Released under the <strong>MIT License</strong>. Free to use, modify, and distribute. The author reserves the right to release future versions under a different license. See <a href="https://github.com/mehregan59/Sc_wide_Search/blob/main/LICENSE" target="_blank" rel="noopener">LICENSE</a>.</p></div>
+        <div class="about-section"><h2>APIs used</h2><p>All public and free: OpenAlex, Europe PMC, PubMed (via Europe PMC), Crossref, arXiv, bioRxiv / medRxiv (via Europe PMC), GBIF, iNaturalist, Zenodo. Institutional databases are listed as stubs &mdash; connectors are added as CORS feasibility is confirmed.</p></div>
       </div>
       <div class="about-side">
         <div class="about-links">
@@ -426,9 +382,7 @@
       </div>
     </div>
   </section>
-
 </main>
-
 <script>
 function openExportRequest(){
   const name=document.getElementById('req-name')?.value||'(not provided)';
