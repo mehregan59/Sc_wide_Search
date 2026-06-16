@@ -1,0 +1,127 @@
+{
+  "presetName": "Microplastics and Human Health (Systematic Review Test)",
+  "version": 1,
+  "description": "Test preset for exercising the full SciWide Search systematic review workflow. Topic: microplastics exposure and human health effects. Covers ingestion, inhalation, dermal exposure routes, biomonitoring, toxicology, and epidemiology across all major databases. Designed to test screening states, PRISMA log, RIS/CSV exports, deduplication, and category assignment.",
+  "terms": {
+    "primary": [
+      "microplastics human health",
+      "microplastic exposure",
+      "nanoplastics toxicology",
+      "plastic particles human body",
+      "microplastic ingestion"
+    ],
+    "synonyms": [
+      "MPs human health",
+      "NPs toxicity",
+      "plastic pollution health effects",
+      "synthetic polymer particles health",
+      "microplastic bioaccumulation",
+      "plastic debris human exposure"
+    ],
+    "extra": [
+      "microplastics blood",
+      "microplastics lung",
+      "microplastics gut",
+      "microplastics placenta",
+      "microplastic biomonitoring",
+      "PFAS microplastics"
+    ],
+    "exclude": [
+      "fish microplastics",
+      "marine organisms microplastics",
+      "soil microplastics crops"
+    ]
+  },
+  "filters": {
+    "yearFrom": 2015,
+    "yearTo": 2025,
+    "maxPerQuery": 200,
+    "languages": "en,de,fr,zh",
+    "geoReq": 0
+  },
+  "databases": [
+    "semanticscholar",
+    "openalex",
+    "europepmc",
+    "pubmed",
+    "crossref",
+    "arxiv",
+    "biorxiv",
+    "zenodo"
+  ],
+  "scope": [
+    "first_record",
+    "monitoring",
+    "distribution",
+    "experimental",
+    "review",
+    "modelling",
+    "theses",
+    "grey",
+    "clinical",
+    "genomics"
+  ],
+  "missingSources": [
+    "WHO technical reports on microplastics and human health (grey literature, 2019–2023)",
+    "Chinese CNKI database — domestic studies on microplastics in food and drinking water",
+    "EU EFSA scientific opinions on microplastics in food (not always indexed in Europe PMC)",
+    "Conference proceedings: SETAC (Society of Environmental Toxicology and Chemistry) annual meetings",
+    "Occupational health grey literature — factory worker biomonitoring studies",
+    "National Institute of Environmental Health Sciences (NIEHS) intramural research reports",
+    "Preprints not yet indexed: medRxiv environmental health submissions 2023–2025"
+  ],
+  "schema": {
+    "fields": [
+      { "field": "full_citation",       "label": "Full citation",        "enabled": true },
+      { "field": "pub_year",            "label": "Year",                 "enabled": true },
+      { "field": "source_type",         "label": "Source type",          "enabled": true },
+      { "field": "language",            "label": "Language",             "enabled": false },
+      { "field": "country",             "label": "Country",              "enabled": true },
+      { "field": "region",              "label": "Region",               "enabled": false },
+      { "field": "locality",            "label": "Locality",             "enabled": false },
+      { "field": "coordinates",         "label": "Coordinates",          "enabled": false },
+      { "field": "sampling_year",       "label": "Sampling year",        "enabled": false },
+      { "field": "host_plant",          "label": "Exposure route / matrix", "enabled": true,
+        "keywords": ["ingestion","inhalation","dermal","blood","lung","gut","placenta","breast milk","urine","faeces","feces","drinking water","food","seafood","salt","air","indoor dust"] },
+      { "field": "study_context",       "label": "Study type",           "enabled": true },
+      { "field": "evidence_type",       "label": "Evidence type",        "enabled": true },
+      { "field": "evidence_class",      "label": "Evidence class",       "enabled": true },
+      { "field": "category",            "label": "Category",             "enabled": true },
+      { "field": "screening_decision",  "label": "Screening",            "enabled": true },
+      { "field": "screening_reason",    "label": "Reason",               "enabled": true },
+      { "field": "excerpt",             "label": "Key excerpt",          "enabled": true },
+      { "field": "doi",                 "label": "DOI",                  "enabled": true },
+      { "field": "url",                 "label": "URL",                  "enabled": true },
+      { "field": "pdf_available",       "label": "PDF",                  "enabled": true },
+      { "field": "verification_status", "label": "Verification",         "enabled": true },
+      { "field": "notes",               "label": "Notes",                "enabled": true },
+      { "field": "source_db",           "label": "Source DB",            "enabled": true }
+    ],
+    "customFields": [
+      {
+        "field": "particle_size",
+        "label": "Particle size range",
+        "type": "string",
+        "desc": "Size class of particles studied",
+        "enabled": true,
+        "keywords": ["microplastic","nanoplastic","nano","micro","<1 µm","1–5 mm","<5 mm","<150 µm","<1 mm"]
+      },
+      {
+        "field": "health_endpoint",
+        "label": "Health endpoint",
+        "type": "string",
+        "desc": "Primary health outcome studied",
+        "enabled": true,
+        "keywords": ["inflammation","oxidative stress","genotoxicity","reproductive","neurotoxicity","carcinogenicity","endocrine disruption","gut microbiome","immune","cardiovascular","respiratory","cancer","fertility","developmental","epigenetic"]
+      },
+      {
+        "field": "polymer_type",
+        "label": "Polymer type",
+        "type": "string",
+        "desc": "Plastic polymer studied",
+        "enabled": true,
+        "keywords": ["polyethylene","PET","polypropylene","polystyrene","PVC","nylon","polyester","PTFE","polyurethane","HDPE","LDPE","ABS","polycarbonate"]
+      }
+    ]
+  }
+}
