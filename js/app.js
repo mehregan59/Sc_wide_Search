@@ -339,6 +339,81 @@ function exportScreened(decision){
   dlFile([headers.join(','),...rows].join('\r\n'),`sciwide_${decision}_${stamp()}.csv`,'text/csv;charset=utf-8;');
 }
 function getPaywalled(){return(window._SWDRecords||[]).filter(r=>r.doi&&r.doi!=='not reported'&&(r.pdf_available==='paywalled'||r.pdf_available==='no'||r.pdf_available==='unknown'));}
+function exportDelimited(){
+  const data=window._SWDRecords||[];
+  if(!data.length){alert('No records. Run a search first.');return;}
+  const delimEl=document.getElementById('custom-delim');
+  const delimRaw=(delimEl?.value||'tab');
+  const delim=delimRaw==='tab'?'\t':delimRaw==='semicolon'?';':delimRaw==='pipe'?'|':(delimRaw.slice(0,1)||',');
+  const doQuote=document.getElementById('custom-quote')?.value!=='none';
+  const includeHeader=document.getElementById('custom-header')?.value!=='no';
+  const active=getActiveSchema();
+  function cell(v){const s=String(v||'').replace(/\n/g,' ');if(doQuote)return '"'+s.replace(/"/g,'""')+'"';return s.replace(new RegExp('\\'+delim,'g'),' ');}
+  const rows=data.map(r=>{const sc=getScreening(r);const full={...r,screening_decision:sc.decision,screening_reason:sc.reason};return active.map(s=>cell(full[s.field]||'')).join(delim);});
+  const header=active.map(s=>cell(s.label||s.field)).join(delim);
+  const ext=delim==='\t'?'tsv':'csv';
+  dlFile([...(includeHeader?[header]:[]),...rows].join('\r\n'),`sciwide_records_${stamp()}.${ext}`,'text/plain;charset=utf-8;');
+}
+// Phase 4: EndNote XML
+function exportEndNoteXML(){
+  const data=window._SWDRecords||[];
+  if(!data.length){alert('No records. Run a search first.');return;}
+  function x(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  const records=data.map((r,i)=>{
+    const au=(r.full_citation||'').split('(')[0].trim().split(';').map(a=>a.trim()).filter(Boolean);
+    const m=(r.full_citation||'').match(/\)\.\s+(.+?)\.\s+DOI:/);
+    const title=m?m[1].trim():(r.full_citation||'').slice(0,200);
+    const sc=getScreening(r);
+    const auXml=au.map(a=>`<author>${x(a)}</author>`).join('');
+    return `  <record>\n    <ref-type name="Journal Article">17</ref-type>\n    <contributors><authors>${auXml}</authors></contributors>\n    <titles><title>${x(title)}</title></titles>\n    <dates><year>${x(String(r.pub_year||''))}</year></dates>\n    <place-published>${x(r.country||'')}</place-published>\n    <isbn>${x(r.doi&&r.doi!=='not reported'?r.doi:'')}</isbn>\n    <urls><related-urls><url>${x(r.url&&r.url!=='not reported'?r.url:'')}</url></related-urls></urls>\n    <electronic-resource-num>${x(r.doi&&r.doi!=='not reported'?r.doi:'')}</electronic-resource-num>\n    <abstract>${x(r.excerpt&&r.excerpt!=='not reported'?r.excerpt:'')}</abstract>\n    <notes>${x(`Cat: ${r.category} | DB: ${r.source_db}${sc.decision?' | Screen: '+sc.decision:''}`)}</notes>\n    <keywords>${sc.decision?`<keyword>screening:${x(sc.decision)}</keyword>`:''}</keywords>\n    <language>${x(r.language||'en')}</language>\n  </record>`;
+  }).join('\n');
+  dlFile(`<?xml version="1.0" encoding="UTF-8"?>\n<xml><records>\n${records}\n</records></xml>`,`sciwide_${stamp()}.xml`,'application/xml;charset=utf-8;');
+}
+// Phase 4: Markdown summary
+function exportMarkdown(){
+  const data=window._SWDRecords||[];
+  if(!data.length){alert('No records. Run a search first.');return;}
+  const s=getSettings();
+  const terms=[...s.primaryTerms,...s.synonymTerms,...s.extraTerms];
+  const inc=data.filter(r=>getScreening(r).decision==='include').length;
+  const exc=data.filter(r=>getScreening(r).decision==='exclude').length;
+  const catMap={A:0,B:0,C:0,D:0,E:0,F:0};data.forEach(r=>{if(catMap[r.category]!==undefined)catMap[r.category]++;});
+  const countryMap={};data.forEach(r=>{if(r.country&&r.country!=='not reported')countryMap[r.country]=(countryMap[r.country]||0)+1;});
+  const topC=Object.entries(countryMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const dbs=[...new Set(data.map(r=>r.source_db).filter(Boolean))];
+  const out=[
+    `# SciWide Search — Session Summary`,``,
+    `**Generated:** ${new Date().toISOString()}  `,
+    `**Citation:** Ebrahimi, M. (2026). *SciWide Search* [Software]. https://github.com/mehregan59/Sc_wide_Search`,``,
+    `## Search strategy`,``,
+    terms.length?`**Terms:** ${terms.map(t=>`\`${t}\``).join(', ')}`:'*No terms recorded.*',``,
+    `**Year range:** ${s.yearFrom||'(all)'} – ${s.yearTo||'(all)'}`,``,
+    `**Databases:** ${dbs.join(', ')||'(none recorded)'}`,``,
+    `## Records overview`,``,
+    `| Metric | Count |`,`|---|---|`,
+    `| Total records | ${data.length} |`,
+    `| Included (screening) | ${inc} |`,
+    `| Excluded (screening) | ${exc} |`,``,
+    `## Category breakdown`,``,
+    `| Category | Label | Count |`,`|---|---|---|`,
+    `| A | Primary location records | ${catMap.A} |`,
+    `| B | Useful sampling locations | ${catMap.B} |`,
+    `| C | Lab / strain origin | ${catMap.C} |`,
+    `| D | Modelling / review | ${catMap.D} |`,
+    `| E | No usable location | ${catMap.E} |`,
+    `| F | Pre-1980 records | ${catMap.F} |`,``,
+    `## Top countries`,``,`| Country | Records |`,`|---|---|`,
+    ...topC.map(([c,n])=>`| ${c} | ${n} |`),``,
+    `## Included records`,``,
+  ];
+  const incData=data.filter(r=>getScreening(r).decision==='include');
+  if(incData.length){
+    out.push(`| # | Authors | Year | Country | DOI |`,`|---|---|---|---|---|`);
+    incData.forEach((r,i)=>{const au=(r.full_citation||'').split('(')[0].trim().slice(0,60);const doi=r.doi&&r.doi!=='not reported'?`[${r.doi}](https://doi.org/${r.doi})`:'—';out.push(`| ${i+1} | ${au} | ${r.pub_year||'—'} | ${r.country||'—'} | ${doi} |`);});
+  } else { out.push('*No records marked as included yet.*'); }
+  out.push('');
+  dlFile(out.join('\n'),`sciwide_summary_${stamp()}.md`,'text/markdown;charset=utf-8;');
+}
 function exportPaywallTxt(){
   const data=getPaywalled();if(!data.length){alert('No paywalled records.');return;}
   dlFile(['Paywalled papers — DOI list','═'.repeat(40),`Generated: ${new Date().toISOString()}`,`Total: ${data.length}`,'','ACCESS OPTIONS:','  1. Email corresponding author (Google Scholar / ResearchGate)','  2. Interlibrary loan (ILL) — free, 24–48h','  3. https://unpaywall.org/<DOI>','  4. https://europepmc.org/search?query=<DOI>','','─'.repeat(60),'',...data.map((r,i)=>`[${i+1}] DOI: ${r.doi}\n    Authors: ${(r.full_citation||'').split('(')[0].trim().slice(0,100)}\n    Year: ${r.pub_year||'n.d.'} | Category: ${r.category}\n    Link: https://doi.org/${r.doi}\n    Unpaywall: https://unpaywall.org/${r.doi}\n`)].join('\n'),`paywalled_dois_${stamp()}.txt`,'text/plain;charset=utf-8;');
@@ -367,7 +442,7 @@ function renderPaywallPanel(){
     return `<div class="paywall-row"><div class="paywall-index">${i+1}</div><div class="paywall-body"><div class="paywall-title">${esc(title)}</div><div class="paywall-meta">${esc(au)} &middot; ${r.pub_year||'n.d.'} &middot; ${esc(r.country||'—')}</div><div class="paywall-doi"><code class="doi-code" id="doi-code-${i}">${esc(r.doi)}</code><button class="btn btn-sm paywall-copy" onclick="copyDOI('${r.doi}','doi-code-${i}')">Copy DOI</button></div><div class="paywall-actions"><a class="paywall-action-link" href="https://doi.org/${esc(r.doi)}" target="_blank" rel="noopener">Publisher →</a> <a class="paywall-action-link" href="https://scholar.google.com/scholar?q=${encodeURIComponent(r.doi)}" target="_blank" rel="noopener">Google Scholar →</a> <a class="paywall-action-link" href="https://europepmc.org/search?query=${encodeURIComponent(r.doi)}" target="_blank" rel="noopener">Europe PMC →</a> <a class="paywall-action-link" href="https://unpaywall.org/${esc(r.doi)}" target="_blank" rel="noopener">Unpaywall →</a></div></div></div>`;
   }).join('');
 }
-window.SWDExportFn={csv:exportCSV,json:exportJSON,bibtex:exportBibtex,ris:exportRIS,geojson:exportGeoJSON,missing:exportMissing,schema:exportSchema,searchLog:exportSearchLog,screened:exportScreened,paywallTxt:exportPaywallTxt,paywallCsv:exportPaywallCsv};
+window.SWDExportFn={csv:exportCSV,delimited:exportDelimited,json:exportJSON,bibtex:exportBibtex,ris:exportRIS,endnotexml:exportEndNoteXML,markdown:exportMarkdown,geojson:exportGeoJSON,missing:exportMissing,schema:exportSchema,searchLog:exportSearchLog,screened:exportScreened,paywallTxt:exportPaywallTxt,paywallCsv:exportPaywallCsv};
 
 // ═══════════════════════════════════════════════════════════════
 // SCHEMA EDITOR
