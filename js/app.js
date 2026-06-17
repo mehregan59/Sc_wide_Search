@@ -689,4 +689,228 @@ function setStatus(state,text){const el=document.getElementById('run-status-labe
 function updateStats(){document.getElementById('s-queries').textContent=stats.queries;document.getElementById('s-raw').textContent=stats.raw;document.getElementById('s-dedup').textContent=stats.dedup;document.getElementById('s-records').textContent=stats.records;document.getElementById('s-noloc').textContent=stats.noloc;document.getElementById('s-errors').textContent=stats.errors;for(const k of Object.keys(catCounts)){const el=document.getElementById(`cat-${k.toLowerCase()}`);if(el)el.textContent=catCounts[k]||0;}}
 function switchTab(id){document.querySelectorAll('.nav-tab').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));const btn=document.querySelector(`.nav-tab[data-tab="${id}"]`);if(btn)btn.classList.add('active');const panel=document.getElementById(`panel-${id}`);if(panel)panel.classList.add('active');if(id==='paywall')renderPaywallPanel();if(id==='schema')renderSchemaEditor();}
 
+// ─── REPLACE the last line "}); // end DOMContentLoaded" with everything below ───
+
+// ═══════════════════════════════════════════════════════════════
+// PHASE 5 — BRIDGE: expose internals + capture settings on run
+// ═══════════════════════════════════════════════════════════════
+window._SWDLiveSchema = LIVE_SCHEMA;
+window._SWDCustomFieldsRef = ()=>customFields;
+window.getScreeningGlobal = getScreening;
+
+// Capture settings each time search starts (for score computation)
+document.getElementById('btn-run')?.addEventListener('click', ()=>{ window._lastSWDSettings=getSettings(); }, true);
+document.getElementById('btn-start-from-config')?.addEventListener('click', ()=>{ window._lastSWDSettings=getSettings(); }, true);
+
+// ═══════════════════════════════════════════════════════════════
+// PHASE 5 — FEATURE 1: EXTRACTION SLOTS
+// ═══════════════════════════════════════════════════════════════
+const MAX_SLOTS=10, WARN_SLOTS=8;
+window._SWDSlots=[];
+let _slotId=0;
+
+const SLOT_TIPS=[
+  {tip:'Geographic location',ex:'Place names, regions, countries.\nExample:\nPacific Ocean\nSouth-East Asia\nSub-Saharan Africa'},
+  {tip:'Methodology / study design',ex:'Study design or method terms.\nExample:\nrandomised controlled trial\ncase-control\nmeta-analysis'},
+  {tip:'Species / organism',ex:'Taxon or common names.\nExample:\nDrosophila suzukii\nspotted wing drosophila'},
+  {tip:'Chemical / compound',ex:'Compound names or classes.\nExample:\npolystyrene\nPET\nbisphenol A'},
+  {tip:'Health endpoint',ex:'Clinical or toxicological outcomes.\nExample:\noxidative stress\ngenotoxicity\nfertility'},
+];
+
+function renderSlots(){
+  const container=document.getElementById('slot-list'); if(!container)return;
+  container.innerHTML=window._SWDSlots.map((sl,idx)=>{
+    const tip=SLOT_TIPS[idx%SLOT_TIPS.length];
+    return `<div class="slot-card" id="slot-card-${sl.id}">
+      <div class="slot-card-header">
+        <span class="slot-number">Slot ${idx+1}</span>
+        <input type="text" class="slot-label-input" value="${esc(sl.label)}" placeholder="Label (e.g. Study location)" onchange="SWDSlots.rename(${sl.id},this.value)" />
+        <label class="slot-partial-toggle"><input type="checkbox" ${sl.partial?'checked':''} onchange="SWDSlots.setPartial(${sl.id},this.checked)" /> Partial match</label>
+        <span class="slot-tip"><span class="slot-tip-icon">? guide</span><span class="slot-tip-box"><strong>${esc(tip.tip)}</strong><br><br>${esc(tip.ex).replace(/\n/g,'<br>')}</span></span>
+        <button class="slot-remove" onclick="SWDSlots.remove(${sl.id})">✕ Remove</button>
+      </div>
+      <textarea class="slot-phrases" placeholder="One phrase per line…" onchange="SWDSlots.setPhrases(${sl.id},this.value)">${esc(sl.phrases.join('\n'))}</textarea>
+      <div class="slot-hint">One phrase per line. ${sl.partial?'<em>Partial match</em> — finds substrings.':'<em>Whole-word match</em> — safer for short terms.'}</div>
+    </div>`;
+  }).join('');
+  const warnEl=document.getElementById('slot-warn');
+  const capEl=document.getElementById('slot-cap');
+  if(warnEl)warnEl.classList.toggle('visible',window._SWDSlots.length>=WARN_SLOTS&&window._SWDSlots.length<MAX_SLOTS);
+  if(capEl)capEl.classList.toggle('visible',window._SWDSlots.length>=MAX_SLOTS);
+  const addBtn=document.getElementById('btn-add-slot');
+  if(addBtn)addBtn.disabled=window._SWDSlots.length>=MAX_SLOTS;
+}
+
+function applySlots(records){
+  if(!records||!records.length||!window._SWDSlots.length)return;
+  records.forEach(r=>{
+    const hay=[r.full_citation||'',r._abstract||r.excerpt||'',r.notes||''].join(' ');
+    window._SWDSlots.forEach(sl=>{
+      if(!sl.phrases.length){r[`slot_${sl.id}`]='[No phrases defined]';return;}
+      const hits=sl.phrases.filter(p=>sl.partial?hay.toLowerCase().includes(p.toLowerCase()):new RegExp('\\b'+p.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','i').test(hay));
+      r[`slot_${sl.id}`]=hits.length?hits.join('; '):'not found';
+    });
+  });
+}
+
+window.SWDSlots={
+  add(){if(window._SWDSlots.length>=MAX_SLOTS)return;window._SWDSlots.push({id:++_slotId,label:`Extraction slot ${_slotId}`,phrases:[],partial:false});renderSlots();},
+  remove(id){window._SWDSlots=window._SWDSlots.filter(s=>s.id!==id);renderSlots();},
+  rename(id,label){const sl=window._SWDSlots.find(s=>s.id===id);if(sl)sl.label=label;},
+  setPhrases(id,text){const sl=window._SWDSlots.find(s=>s.id===id);if(sl)sl.phrases=text.split('\n').map(p=>p.trim()).filter(Boolean);},
+  setPartial(id,val){const sl=window._SWDSlots.find(s=>s.id===id);if(sl){sl.partial=val;renderSlots();}},
+  exportSlot(id){
+    const sl=window._SWDSlots.find(s=>s.id===id);if(!sl){alert('Slot not found.');return;}
+    const records=window._SWDRecords||[];if(!records.length){alert('No records. Run a search first.');return;}
+    const field=`slot_${sl.id}`;
+    const rows=records.map(r=>[`"${String(r.full_citation||'').replace(/"/g,'""')}"`,`"${r.pub_year||''}"`,`"${r.country||''}"`,`"${r.doi||''}"`,`"${String(r[field]||'not found').replace(/"/g,'""')}"`].join(','));
+    const name=sl.label.replace(/[^a-z0-9]/gi,'_').toLowerCase().slice(0,30)||`slot${sl.id}`;
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+[`Full citation,Year,Country,DOI,${sl.label}`,...rows].join('\r\n')],{type:'text/csv;charset=utf-8;'}));a.download=`sciwide_extraction_${name}_${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);
+  },
+  exportAll(){
+    const records=window._SWDRecords||[];if(!records.length){alert('No records.');return;}
+    const slots=window._SWDSlots;if(!slots.length){alert('No extraction slots defined.');return;}
+    const rows=records.map(r=>[`"${String(r.full_citation||'').replace(/"/g,'""')}"`,`"${r.pub_year||''}"`,`"${r.country||''}"`,`"${r.doi||''}"`, ...slots.map(sl=>`"${String(r[`slot_${sl.id}`]||'not found').replace(/"/g,'""')}"`).join(',')].join(','));
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+[['Full citation','Year','Country','DOI',...slots.map(sl=>sl.label)].join(','),...rows].join('\r\n')],{type:'text/csv;charset=utf-8;'}));a.download=`sciwide_all_extractions_${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);
+  },
+  renderExportPanel(){
+    const el=document.getElementById('acc-slots-export');if(!el)return;
+    const slots=window._SWDSlots;
+    if(!slots.length){el.innerHTML='<p style="font-size:12.5px;color:var(--ink-3);padding:.5rem 0">No extraction slots defined. Add slots in the Schema tab, then run a search.</p>';return;}
+    el.innerHTML=`<div class="accordion-grid">${slots.map(sl=>`<div class="acc-card"><div class="acc-card-icon">⬇</div><div class="acc-card-name">${esc(sl.label)}</div><div class="acc-card-desc">Matched phrases across all records.</div><button class="btn btn-ghost" onclick="SWDSlots.exportSlot(${sl.id})">Download CSV</button></div>`).join('')}<div class="acc-card acc-card-featured"><div class="acc-card-icon">⬇</div><div class="acc-card-name">All slots combined</div><div class="acc-card-desc">All ${slots.length} slot${slots.length>1?'s':''} as columns in one CSV.</div><button class="btn btn-primary" onclick="SWDSlots.exportAll()">Download all slots CSV</button></div></div>`;
+  },
+  serialize(){return window._SWDSlots.map(sl=>({label:sl.label,phrases:sl.phrases,partial:sl.partial}));},
+  restore(arr){if(!Array.isArray(arr))return;window._SWDSlots=arr.map(sl=>({id:++_slotId,label:sl.label||'Slot',phrases:sl.phrases||[],partial:!!sl.partial}));renderSlots();},
+};
+document.getElementById('btn-add-slot')?.addEventListener('click',()=>window.SWDSlots.add());
+renderSlots();
+
+// ═══════════════════════════════════════════════════════════════
+// PHASE 5 — FEATURE 2: RELEVANCE SCORES + ABSTRACT EXPORT
+// ═══════════════════════════════════════════════════════════════
+function scoreSchemaFit(r){
+  const active=([...LIVE_SCHEMA,...customFields]).filter(f=>f.enabled);
+  if(!active.length)return 0;
+  const filled=active.filter(f=>{const v=r[f.field];return v&&v!=='not reported'&&v!==''&&v!=='not found';}).length;
+  return Math.round((filled/active.length)*100);
+}
+function scoreTermRelevance(r){
+  const s=window._lastSWDSettings;if(!s)return 0;
+  const terms=[...(s.primaryTerms||[]),...(s.synonymTerms||[]),...(s.extraTerms||[])].filter(Boolean);
+  if(!terms.length)return 0;
+  const hay=[(r.full_citation||''),(r._abstract||''),(r.excerpt||'')].join(' ').toLowerCase();
+  const matched=terms.filter(t=>hay.includes(t.toLowerCase())).length;
+  return Math.round((matched/terms.length)*100);
+}
+function getExportOptions(){
+  return {
+    includeAbstract:!!(document.getElementById('opt-abstract')?.checked),
+    includeSchemaFit:!!(document.getElementById('opt-schema-fit')?.checked),
+    includeTermRelevance:!!(document.getElementById('opt-term-rel')?.checked),
+  };
+}
+function updateSizeWarning(){
+  const opts=getExportOptions();
+  const n=(window._SWDRecords||[]).length;
+  const est=n*300+(opts.includeAbstract?n*1500:0);
+  const el=document.getElementById('csv-size-warn');if(!el)return;
+  if(opts.includeAbstract&&est>2097152){
+    el.classList.add('visible');
+    el.innerHTML=`⚠ Estimated CSV size: <strong>${(est/1048576).toFixed(1)} MB</strong> — may be slow in Excel. <button class="btn btn-sm btn-ghost" style="margin-left:8px" onclick="SWDScores.exportSplit()">Download split (500/file)</button>`;
+  } else {el.classList.remove('visible');}
+}
+['opt-abstract','opt-schema-fit','opt-term-rel'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el)el.addEventListener('change',updateSizeWarning);
+});
+window.SWDScores={
+  scoreSchemaFit,scoreTermRelevance,
+  exportSplit(){
+    const records=window._SWDRecords||[];if(!records.length){alert('No records.');return;}
+    const CHUNK=500;const active=([...LIVE_SCHEMA,...customFields]).filter(f=>f.enabled);
+    const hdr=[...active.map(s=>s.label||s.field),'Schema fit %','Term relevance %','Abstract'].join(',');
+    const st=new Date().toISOString().slice(0,10);
+    for(let i=0;i<records.length;i+=CHUNK){
+      const chunk=records.slice(i,i+CHUNK);
+      const rows=chunk.map(r=>{const sc2=getScreening(r);const full={...r,screening_decision:sc2.decision,screening_reason:sc2.reason};const base=active.map(s=>`"${String(full[s.field]||'').replace(/"/g,'""').replace(/\n/g,' ')}"`);const abstr=(r._abstract||'[No abstract available]').replace(/"/g,'""').replace(/\n/g,' ');return[...base,`"${scoreSchemaFit(r)}"`,`"${scoreTermRelevance(r)}"`,`"${abstr}"`].join(',');});
+      const part=Math.floor(i/CHUNK)+1;
+      const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+[hdr,...rows].join('\r\n')],{type:'text/csv;charset=utf-8;'}));a.download=`sciwide_records_part${part}_${st}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);
+    }
+  },
+  updateSizeWarning,
+};
+
+// Patch exportCSV to include optional score + abstract columns
+const _origCSV=window.SWDExportFn?.csv;
+if(window.SWDExportFn){
+  window.SWDExportFn.csv=function(cat){
+    const opts=getExportOptions();
+    if(!opts.includeAbstract&&!opts.includeSchemaFit&&!opts.includeTermRelevance){if(_origCSV)return _origCSV(cat);return;}
+    const data=(window._SWDRecords||[]).filter(r=>cat==='all'||r.category===cat);
+    if(!data.length){alert('No records. Run a search first.');return;}
+    const active=([...LIVE_SCHEMA,...customFields]).filter(f=>f.enabled);
+    const extraH=[];
+    if(opts.includeSchemaFit)extraH.push('Schema fit %');
+    if(opts.includeTermRelevance)extraH.push('Term relevance %');
+    if(opts.includeAbstract)extraH.push('Abstract');
+    const headers=[...active.map(s=>s.label||s.field),...extraH];
+    const rows=data.map(r=>{const sc2=getScreening(r);const full={...r,screening_decision:sc2.decision,screening_reason:sc2.reason};const base=active.map(s=>`"${String(full[s.field]||'').replace(/"/g,'""').replace(/\n/g,' ')}"`);const extra=[];if(opts.includeSchemaFit)extra.push(`"${scoreSchemaFit(r)}"`);if(opts.includeTermRelevance)extra.push(`"${scoreTermRelevance(r)}"`);if(opts.includeAbstract)extra.push(`"${(r._abstract||'[No abstract available]').replace(/"/g,'""').replace(/\n/g,' ')}"`);return[...base,...extra].join(',');});
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+[headers.join(','),...rows].join('\r\n')],{type:'text/csv;charset=utf-8;'}));a.download=`sciwide_records${cat!=='all'?'_cat'+cat:''}_${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);
+  };
+  // Patch JSON to always include abstract + scores
+  window.SWDExportFn.json=function(){
+    if(!(window._SWDRecords||[]).length){alert('No records.');return;}
+    const out=(window._SWDRecords||[]).map(r=>{const sc2=getScreening(r);return{...r,screening_decision:sc2.decision,screening_reason:sc2.reason,abstract:r._abstract||null,schema_fit_pct:scoreSchemaFit(r),term_relevance_pct:scoreTermRelevance(r)};});
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,2)],{type:'application/json'}));a.download=`sciwide_records_${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();document.body.removeChild(a);
+  };
+}
+
+// Show score columns in results table if toggled
+['opt-schema-fit','opt-term-rel'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el)el.addEventListener('change',()=>{ if((window._SWDRecords||[]).length) renderTable(); });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// PHASE 5 — FEATURE 3: ACCORDION WIRING
+// ═══════════════════════════════════════════════════════════════
+let _lastOpenAccordion=null;
+function toggleAccordion(groupId){
+  const group=document.getElementById(groupId);if(!group)return;
+  const wasOpen=group.classList.contains('open');
+  document.querySelectorAll('.accordion-group').forEach(g=>g.classList.remove('open'));
+  if(!wasOpen){group.classList.add('open');_lastOpenAccordion=groupId;}
+  else{_lastOpenAccordion=null;}
+}
+window.SWDAccordion={toggle:toggleAccordion};
+document.querySelectorAll('.accordion-header').forEach(h=>h.addEventListener('click',()=>{const g=h.closest('.accordion-group');if(g)toggleAccordion(g.id);}));
+
+// Patch switchTab to restore last open accordion group
+const _origSwitchTab=switchTab;
+// Override switchTab globally
+window._SWDSwitchTab=function(id){
+  _origSwitchTab(id);
+  if(id==='export'&&_lastOpenAccordion){
+    const g=document.getElementById(_lastOpenAccordion);
+    if(g)g.classList.add('open');
+  }
+};
+// Re-wire all nav-tab clicks to use patched version
+document.querySelectorAll('.nav-tab').forEach(btn=>{
+  btn.onclick=null;
+  btn.addEventListener('click',()=>window._SWDSwitchTab(btn.dataset.tab));
+});
+
+// Also wire search-complete: apply slots + update size warning
+const _origEndObserver=document.getElementById('btn-run');
+if(_origEndObserver){
+  new MutationObserver(()=>{
+    if(!_origEndObserver.disabled&&(window._SWDRecords||[]).length){
+      applySlots(window._SWDRecords);
+      window.SWDSlots.renderExportPanel();
+      updateSizeWarning();
+    }
+  }).observe(_origEndObserver,{attributes:true,attributeFilter:['disabled']});
+}
+
 }); // end DOMContentLoaded
