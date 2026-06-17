@@ -166,8 +166,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .missing-item:first-child { border-top: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0; }
 .missing-item:last-child { border-radius: 0 0 var(--radius) var(--radius); }
 
-/* ─── Export tab ──────────────────────────────────── */
-.export-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
+/* ─── Export tab (legacy flat grid — kept for fallback) ── */
+.export-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem; }
 .export-card { display: flex; flex-direction: column; gap: .5rem; padding: 1.25rem; }
 .export-featured { border-color: var(--accent); }
 .export-icon { font-size: 20px; color: var(--ink-3); font-family: var(--mono); }
@@ -210,6 +210,87 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .log-box::-webkit-scrollbar-thumb, .table-wrap::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 3px; }
 
 /* ═══════════════════════════════════════════════════
+   FEATURE 1 — EXTRACTION SLOTS (Schema tab sub-panel)
+═══════════════════════════════════════════════════ */
+.slot-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-top: 1.5rem; }
+.slot-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px; }
+.slot-panel-header h3 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); }
+.slot-panel-info { background: #eef4fb; border: 1px solid #b0c8e8; border-radius: var(--radius-lg); padding: .75rem 1rem; font-size: 12.5px; color: var(--ink-2); line-height: 1.65; margin-bottom: 1.25rem; }
+.slot-panel-info strong { color: var(--ink); }
+.slot-list { display: flex; flex-direction: column; gap: 1rem; }
+.slot-card { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; position: relative; }
+.slot-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: .75rem; flex-wrap: wrap; }
+.slot-number { font-family: var(--mono); font-size: 11px; color: var(--ink-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 2px 7px; flex-shrink: 0; }
+.slot-label-input { flex: 1; min-width: 140px; padding: 5px 9px; font-size: 13px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--ink); }
+.slot-label-input:focus { outline: none; border-color: var(--accent); }
+.slot-partial-toggle { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--ink-3); cursor: pointer; white-space: nowrap; }
+.slot-partial-toggle input { width: 13px; height: 13px; accent-color: var(--accent); cursor: pointer; }
+.slot-remove { margin-left: auto; background: none; border: 1px solid var(--border); border-radius: var(--radius); padding: 3px 9px; font-size: 11px; color: var(--red); cursor: pointer; transition: all .12s; flex-shrink: 0; }
+.slot-remove:hover { background: var(--red-lt); border-color: var(--red); }
+.slot-phrases { width: 100%; height: 72px; font-family: var(--mono); font-size: 12px; padding: 7px 9px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--ink); resize: vertical; line-height: 1.55; }
+.slot-phrases:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(45,90,61,.08); }
+.slot-hint { font-size: 11px; color: var(--ink-3); margin-top: 5px; line-height: 1.5; }
+/* tooltip on hover */
+.slot-tip { position: relative; display: inline-block; }
+.slot-tip-icon { font-size: 11px; color: var(--accent); cursor: help; border-bottom: 1px dashed var(--accent); }
+.slot-tip-box { display: none; position: absolute; left: 0; top: calc(100% + 6px); z-index: 200; background: var(--ink); color: #fff; font-size: 11.5px; line-height: 1.6; padding: 10px 13px; border-radius: var(--radius-lg); width: 280px; box-shadow: 0 4px 16px rgba(0,0,0,.18); pointer-events: none; }
+.slot-tip:hover .slot-tip-box { display: block; }
+.slot-tip-box::before { content: ''; position: absolute; top: -5px; left: 10px; border: 5px solid transparent; border-bottom-color: var(--ink); border-top: none; }
+/* warning banners */
+.slot-warn { background: var(--amber-lt); border: 1px solid #f9c74f; border-radius: var(--radius-lg); padding: .6rem 1rem; font-size: 12px; color: var(--amber); margin-top: .75rem; display: none; }
+.slot-warn.visible { display: block; }
+.slot-cap { background: var(--red-lt); border: 1px solid #e08080; border-radius: var(--radius-lg); padding: .6rem 1rem; font-size: 12px; color: var(--red); margin-top: .75rem; display: none; }
+.slot-cap.visible { display: block; }
+
+/* ═══════════════════════════════════════════════════
+   FEATURE 2 — RELEVANCE SCORES & ABSTRACT EXPORT
+═══════════════════════════════════════════════════ */
+/* Global export options card (above accordion) */
+.export-options-card { background: #f0edf7; border: 1px solid #b8a8d8; border-radius: var(--radius-lg); padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; }
+.export-options-card h3 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: #4b3268; margin-bottom: 1rem; }
+.export-options-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+.export-option-row { display: flex; align-items: flex-start; gap: 10px; }
+.export-option-row input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); margin-top: 2px; flex-shrink: 0; cursor: pointer; }
+.export-option-label { font-size: 13px; font-weight: 500; color: var(--ink); cursor: pointer; }
+.export-option-desc { font-size: 11.5px; color: var(--ink-3); line-height: 1.5; margin-top: 2px; }
+/* score tooltip */
+.score-tip { position: relative; display: inline-block; }
+.score-tip-icon { font-size: 11px; color: #4b3268; cursor: help; border-bottom: 1px dashed #4b3268; }
+.score-tip-box { display: none; position: absolute; left: 0; top: calc(100% + 6px); z-index: 200; background: var(--ink); color: #fff; font-size: 11.5px; line-height: 1.65; padding: 10px 13px; border-radius: var(--radius-lg); width: 300px; box-shadow: 0 4px 16px rgba(0,0,0,.18); pointer-events: none; }
+.score-tip:hover .score-tip-box { display: block; }
+.score-tip-box code { background: rgba(255,255,255,.15); padding: 1px 5px; border-radius: 3px; font-family: var(--mono); font-size: 11px; }
+/* size warning */
+.csv-size-warn { background: var(--amber-lt); border: 1px solid #f9c74f; border-radius: var(--radius); padding: .5rem .9rem; font-size: 12px; color: var(--amber); margin-top: .75rem; display: none; }
+.csv-size-warn.visible { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* ═══════════════════════════════════════════════════
+   FEATURE 3 — EXPORT ACCORDION
+═══════════════════════════════════════════════════ */
+.export-accordion { display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.5rem; }
+.accordion-group { border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: var(--surface); }
+.accordion-header { display: flex; align-items: center; justify-content: space-between; padding: .9rem 1.25rem; cursor: pointer; background: var(--paper); transition: background .12s; user-select: none; gap: 10px; }
+.accordion-header:hover { background: #f0ede8; }
+.accordion-header-left { display: flex; align-items: center; gap: 10px; }
+.accordion-icon { font-size: 16px; width: 28px; text-align: center; flex-shrink: 0; }
+.accordion-title { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.accordion-badge { font-size: 11px; font-family: var(--mono); color: var(--ink-3); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1px 8px; }
+.accordion-chevron { font-size: 12px; color: var(--ink-3); transition: transform .2s; flex-shrink: 0; }
+.accordion-group.open .accordion-chevron { transform: rotate(180deg); }
+.accordion-body { display: none; padding: 1rem; border-top: 1px solid var(--border); }
+.accordion-group.open .accordion-body { display: block; }
+.accordion-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .75rem; }
+.acc-card { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: .4rem; }
+.acc-card-featured { border-color: var(--accent); background: var(--accent-lt); }
+.acc-card-coming { opacity: .6; border-style: dashed; }
+.acc-card-icon { font-size: 17px; color: var(--ink-3); }
+.acc-card-name { font-size: 13px; font-weight: 600; color: var(--ink); }
+.acc-card-desc { font-size: 11.5px; color: var(--ink-3); line-height: 1.5; flex: 1; }
+.acc-card .btn { margin-top: .25rem; font-size: 12px; padding: 6px 14px; }
+/* custom delimiter mini-controls inside card */
+.acc-delim-controls { display: flex; gap: 5px; flex-wrap: wrap; margin: .4rem 0; }
+.acc-delim-controls select { font-size: 11.5px; padding: 3px 6px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); flex: 1; min-width: 80px; }
+
+/* ═══════════════════════════════════════════════════
    RESPONSIVE — TABLET  (≤ 900px)
 ═══════════════════════════════════════════════════ */
 @media (max-width: 900px) {
@@ -220,75 +301,55 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
   .about-side { position: static; }
   .stats-row { grid-template-columns: repeat(3, 1fr); }
   .header-inner { gap: 1rem; }
+  .accordion-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+  .export-options-grid { grid-template-columns: 1fr 1fr; }
 }
 
 /* ═══════════════════════════════════════════════════
    RESPONSIVE — MOBILE  (≤ 600px)
 ═══════════════════════════════════════════════════ */
 @media (max-width: 600px) {
-  /* ── Layout ── */
   .app-main { padding: 1rem; }
   .header-inner { padding: 0 .75rem; height: 52px; gap: .5rem; }
-
-  /* ── Brand ── */
   .brand-sub { display: none; }
   .brand-logo { width: 30px !important; height: 30px !important; }
   .brand-name { font-size: 13px; }
-
-  /* ── Nav: horizontally scrollable pill strip ── */
-  .header-nav {
-    gap: 1px;
-    overflow-x: auto;
-    padding-bottom: 2px; /* keep scrollbar from overlapping content */
-  }
+  .header-nav { gap: 1px; overflow-x: auto; padding-bottom: 2px; }
   .nav-tab { padding: 5px 10px; font-size: 12px; }
-
-  /* ── Typography ── */
   .panel-title h1 { font-size: 20px; }
   .panel-title p  { font-size: 13px; }
-
-  /* ── Config cards ── */
   .config-card, .run-card { padding: 1rem; }
   .config-actions { flex-direction: column; align-items: stretch; gap: .6rem; }
   .config-actions .btn { text-align: center; }
   .action-hint { margin-left: 0; text-align: center; }
-
-  /* ── Collapse side-by-side textareas ── */
   .field-row { flex-direction: column; gap: .6rem; }
   .field-sm { flex: none !important; width: 100%; }
-
-  /* ── Grids ── */
   .export-grid  { grid-template-columns: 1fr; }
   .stats-row    { grid-template-columns: repeat(2, 1fr); }
-
-  /* ── Run layout sidebar becomes full width below main ── */
   .run-sidebar .run-card { padding: 1rem; }
   .input-row { flex-wrap: wrap; }
   .input-row input, .input-row select { min-width: 0; }
-
-  /* ── Search / filter row: stack vertically ── */
   .search-filter-row { flex-direction: column; }
-  .search-filter-row input,
-  .search-filter-row select { min-width: 0; width: 100%; flex: none; }
-
-  /* ── Results table: allow full horizontal scroll, tighten padding ── */
+  .search-filter-row input, .search-filter-row select { min-width: 0; width: 100%; flex: none; }
   .results-table th, .results-table td { padding: 7px 9px; }
   .truncate { max-width: 110px; }
-
-  /* ── Screening cell: make buttons bigger for touch ── */
   .screen-btn { width: 34px; height: 30px; font-size: 15px; }
   .screen-reason-input { font-size: 11px; }
-
-  /* ── Cat filter row: allow scroll without wrap ── */
   .cat-filter-row { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
   .cat-filter-btn { flex-shrink: 0; }
-
-  /* ── About: remove sticky sidebar ── */
   .about-side { position: static; }
   .about-section { padding: 1rem; }
-
-  /* ── Export cards ── */
   .export-card { padding: 1rem; }
+  /* Feature 1 */
+  .slot-card { padding: .875rem; }
+  .slot-card-header { gap: 7px; }
+  .slot-tip-box { width: 220px; }
+  /* Feature 2 */
+  .export-options-grid { grid-template-columns: 1fr; }
+  /* Feature 3 */
+  .accordion-grid { grid-template-columns: 1fr; }
+  .accordion-header { padding: .75rem 1rem; }
+  .score-tip-box { width: 230px; left: auto; right: 0; }
 }
 
 /* ═══════════════════════════════════════════════════
@@ -303,4 +364,5 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
   .chip { font-size: 11px; padding: 3px 8px; }
   .results-table th, .results-table td { padding: 6px 7px; font-size: 11.5px; }
   .screen-btn { width: 32px; height: 28px; }
+  .slot-tip-box, .score-tip-box { width: 190px; }
 }
