@@ -31,6 +31,27 @@
     </div>
   </div>
 </div>
+<div class="scope-modal" id="scope-modal" role="dialog" aria-modal="true">
+  <div class="scope-modal-box">
+    <h3>Export scope</h3>
+    <p>You have <strong id="scope-modal-count">0</strong> rows selected in Results. Export selected rows only, or all records?</p>
+    <div class="scope-modal-btns">
+      <button class="btn btn-ghost" id="scope-modal-selected">Selected only</button>
+      <button class="btn btn-primary" id="scope-modal-all">All records</button>
+    </div>
+    <button class="scope-modal-cancel" id="scope-modal-cancel">Cancel</button>
+  </div>
+</div>
+<div class="clear-sel-modal" id="clear-sel-modal" role="dialog" aria-modal="true">
+  <div class="clear-sel-modal-box">
+    <h3>Clear current selection?</h3>
+    <p>You have <strong id="clear-sel-count">0</strong> rows selected from your previous search. Starting a new search will replace all records, so this selection will be cleared. Continue?</p>
+    <div class="clear-sel-modal-btns">
+      <button class="btn btn-ghost" id="clear-sel-cancel">Cancel</button>
+      <button class="btn btn-primary" id="clear-sel-confirm">Start new search</button>
+    </div>
+  </div>
+</div>
 <input type="file" id="preset-file-input" accept=".json" style="display:none" />
 <header class="app-header">
   <div class="header-inner">
@@ -282,6 +303,10 @@
   <section class="tab-panel" id="panel-results">
     <div class="panel-title"><h1>Results</h1><p>Columns reflect your active schema plus any extraction slots. Use the <strong>Screen</strong> column to include &#10003;, flag ?, or exclude &#10007; each record.</p></div>
     <div id="screening-counts"></div>
+    <div class="selection-bar" id="selection-bar">
+      <span><strong id="sel-count">0</strong> rows selected</span>
+      <button class="btn btn-ghost" id="btn-clear-selection">Clear selection</button>
+    </div>
     <div class="results-toolbar">
       <div class="cat-filter-row">
         <button class="cat-filter-btn active" data-cat="all">All</button>
@@ -306,6 +331,21 @@
       </table>
     </div>
     <div class="table-footer" id="table-footer"></div>
+    <div class="pagination-bar" id="pagination-bar">
+      <div>
+        <span class="pagination-size-label">Rows per page:</span>
+        <select class="pagination-size-select" id="pagination-size">
+          <option value="10">10</option>
+          <option value="25">25</option>
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+          <option value="250">250</option>
+          <option value="all">All</option>
+        </select>
+        <span class="pagination-allwarn" id="pagination-allwarn" style="display:none">&#9888; Showing all rows may be slow for 1000+ records.</span>
+      </div>
+      <div class="pagination-controls" id="pagination-controls"></div>
+    </div>
     <div class="missing-sources-section"><h2>Known gaps &amp; hard-to-access sources</h2><div id="missing-list" class="missing-list"></div></div>
   </section>
 
