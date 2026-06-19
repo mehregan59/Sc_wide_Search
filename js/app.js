@@ -913,4 +913,297 @@ if(_origEndObserver){
   }).observe(_origEndObserver,{attributes:true,attributeFilter:['disabled']});
 }
 
+// ─── REPLACE the last line "}); // end DOMContentLoaded" with everything below ───
+
+// ═══════════════════════════════════════════════════════════════
+// PHASE 6 — ROW SELECTION + PAGINATION + EXPORT SCOPE MODAL
+// ═══════════════════════════════════════════════════════════════
+
+// Selection state: Set of screeningKey() strings
+window._SWDSelection = new Set();
+let _paginationSize = 50; // default
+let _paginationPage = 1;
+
+function getSelectedRecords(){
+  return (window._SWDRecords||[]).filter(r => window._SWDSelection.has(screeningKey(r)));
+}
+
+function renderSelectionBar(){
+  const bar = document.getElementById('selection-bar');
+  const countEl = document.getElementById('sel-count');
+  if(!bar) return;
+  const n = window._SWDSelection.size;
+  if(countEl) countEl.textContent = n;
+  bar.classList.toggle('visible', n > 0);
+}
+
+window.SWDSelection = {
+  toggle(key){
+    if(window._SWDSelection.has(key)) window._SWDSelection.delete(key);
+    else window._SWDSelection.add(key);
+    renderSelectionBar();
+    renderTable();
+  },
+  clear(){
+    window._SWDSelection.clear();
+    renderSelectionBar();
+    renderTable();
+  },
+  selectAllFiltered(filteredRecords){
+    filteredRecords.forEach(r => window._SWDSelection.add(screeningKey(r)));
+    renderSelectionBar();
+    renderTable();
+  },
+  deselectAllFiltered(filteredRecords){
+    filteredRecords.forEach(r => window._SWDSelection.delete(screeningKey(r)));
+    renderSelectionBar();
+    renderTable();
+  },
+};
+
+document.getElementById('btn-clear-selection')?.addEventListener('click', () => window.SWDSelection.clear());
+
+// ── Pagination ──────────────────────────────────────────────
+document.getElementById('pagination-size')?.addEventListener('change', (e) => {
+  const val = e.target.value;
+  _paginationSize = val === 'all' ? Infinity : parseInt(val);
+  _paginationPage = 1;
+  const warnEl = document.getElementById('pagination-allwarn');
+  const total = (window._SWDRecords||[]).length;
+  if(warnEl) warnEl.style.display = (val === 'all' && total > 1000) ? 'inline' : 'none';
+  renderTable();
+});
+
+function renderPaginationControls(totalFiltered){
+  const container = document.getElementById('pagination-controls');
+  if(!container) return;
+  const totalPages = _paginationSize === Infinity ? 1 : Math.max(1, Math.ceil(totalFiltered / _paginationSize));
+  if(_paginationPage > totalPages) _paginationPage = totalPages;
+
+  if(totalPages <= 1){ container.innerHTML = ''; return; }
+
+  let html = `<button id="pg-prev" ${_paginationPage<=1?'disabled':''}>&laquo; Prev</button>`;
+  const maxButtons = 7;
+  let start = Math.max(1, _paginationPage - 3);
+  let end = Math.min(totalPages, start + maxButtons - 1);
+  start = Math.max(1, end - maxButtons + 1);
+  if(start > 1) html += `<button data-pg="1">1</button>${start>2?'<span style="padding:0 4px;color:var(--ink-3)">…</span>':''}`;
+  for(let p=start; p<=end; p++){
+    html += `<button data-pg="${p}" class="${p===_paginationPage?'current-page':''}">${p}</button>`;
+  }
+  if(end < totalPages) html += `${end<totalPages-1?'<span style="padding:0 4px;color:var(--ink-3)">…</span>':''}<button data-pg="${totalPages}">${totalPages}</button>`;
+  html += `<button id="pg-next" ${_paginationPage>=totalPages?'disabled':''}>Next &raquo;</button>`;
+  container.innerHTML = html;
+
+  container.querySelectorAll('button[data-pg]').forEach(btn => {
+    btn.addEventListener('click', () => { _paginationPage = parseInt(btn.dataset.pg); renderTable(); });
+  });
+  document.getElementById('pg-prev')?.addEventListener('click', () => { if(_paginationPage>1){_paginationPage--;renderTable();} });
+  document.getElementById('pg-next')?.addEventListener('click', () => { if(_paginationPage<totalPages){_paginationPage++;renderTable();} });
+}
+
+// ── Patch renderTable to add checkbox column + pagination ──
+const _origRenderTable = renderTable;
+renderTable = function(){
+  const active = getActiveSchema();
+  const slotCols = (window._SWDSlots||[]).map(sl=>({field:`slot_${sl.id}`,label:sl.label}));
+  const opts = (typeof getExportOptions === 'function') ? getExportOptions() : {includeSchemaFit:false,includeTermRelevance:false};
+  const scoreCols = [];
+  if(opts.includeSchemaFit) scoreCols.push({field:'_schemaFit',label:'Schema fit %'});
+  if(opts.includeTermRelevance) scoreCols.push({field:'_termRel',label:'Term relevance %'});
+  const allCols = [...active, ...slotCols, ...scoreCols];
+
+  const q = (document.getElementById('res-search').value||'').toLowerCase();
+  const v = document.getElementById('res-verif').value;
+  const sort = document.getElementById('res-sort').value;
+
+  let data = (window._SWDRecords||[]).filter(r => {
+    if(currentCat!=='all' && r.category!==currentCat) return false;
+    if(v && r.verification_status!==v) return false;
+    if(screenFilter){ const sc=getScreening(r).decision; if(screenFilter==='unscreened'&&sc) return false; if(screenFilter!=='unscreened'&&sc!==screenFilter) return false; }
+    if(q){ const h=allCols.map(s=>String(r[s.field]||'')).join(' ').toLowerCase(); if(!h.includes(q)) return false; }
+    return true;
+  });
+  if(sort==='year_desc') data.sort((a,b)=>(b.pub_year||0)-(a.pub_year||0));
+  if(sort==='year_asc') data.sort((a,b)=>(a.pub_year||0)-(b.pub_year||0));
+  if(sort==='country_asc') data.sort((a,b)=>(a.country||'').localeCompare(b.country||''));
+  if(sort==='verif') data.sort((a,b)=>(a.verification_status||'').localeCompare(b.verification_status||''));
+
+  // store filtered set globally for select-all-filtered
+  window._SWDFilteredView = data;
+
+  const thead = document.getElementById('results-thead');
+  const allFilteredSelected = data.length>0 && data.every(r=>window._SWDSelection.has(screeningKey(r)));
+  if(thead) thead.innerHTML = '<tr><th class="row-select-cell"><input type="checkbox" class="select-all-checkbox" id="select-all-cb" ' + (allFilteredSelected?'checked':'') + ' /></th>' +
+    allCols.map(s=>`<th>${esc(s.label||s.field)}</th>`).join('') + '<th>Screen</th></tr>';
+
+  const selectAllCb = document.getElementById('select-all-cb');
+  if(selectAllCb) selectAllCb.addEventListener('change', (e) => {
+    if(e.target.checked) window.SWDSelection.selectAllFiltered(data);
+    else window.SWDSelection.deselectAllFiltered(data);
+  });
+
+  const tbody = document.getElementById('results-tbody');
+  const totalCols = allCols.length + 2;
+  if(!data.length){
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${totalCols}">${(window._SWDRecords||[]).length===0?'Run a search to see results.':'No records match the filter.'}</td></tr>`;
+    document.getElementById('table-footer').textContent='';
+    renderPaginationControls(0);
+    return;
+  }
+
+  // Pagination slice
+  const totalFiltered = data.length;
+  const pageSize = _paginationSize===Infinity ? totalFiltered : _paginationSize;
+  const startIdx = (_paginationPage-1)*pageSize;
+  const pageData = data.slice(startIdx, startIdx+pageSize);
+
+  tbody.innerHTML = pageData.map(r => {
+    const sc2 = getScreening(r);
+    const key = screeningKey(r);
+    const rId = `sr-${key.slice(-8)}-${Math.random().toString(36).slice(2,6)}`;
+    const isSelected = window._SWDSelection.has(key);
+    const selCell = `<td class="row-select-cell"><input type="checkbox" ${isSelected?'checked':''} onchange="SWDSelection.toggle('${esc(key)}')" /></td>`;
+    const screenCell = `<td class="screen-cell"><div class="screen-btns"><button class="screen-btn ${sc2.decision==='include'?'active-include':''}" onclick="applyScreening('${esc(key)}','include','${rId}')">✓</button><button class="screen-btn ${sc2.decision==='maybe'?'active-maybe':''}" onclick="applyScreening('${esc(key)}','maybe','${rId}')">?</button><button class="screen-btn ${sc2.decision==='exclude'?'active-exclude':''}" onclick="applyScreening('${esc(key)}','exclude','${rId}')">✗</button></div><input type="text" id="${rId}" class="screen-reason-input" value="${esc(sc2.reason)}" placeholder="reason" /></td>`;
+    const rowClasses = [sc2.decision?'row-'+sc2.decision:'', isSelected?'row-selected':''].filter(Boolean).join(' ');
+    return `<tr class="${rowClasses}">` + selCell + allCols.map(s=>{
+      if(s.field==='_schemaFit') return `<td style="font-family:var(--mono);font-size:11px;color:var(--accent)">${(window.SWDScores?SWDScores.scoreSchemaFit(r):0)}%</td>`;
+      if(s.field==='_termRel') return `<td style="font-family:var(--mono);font-size:11px;color:var(--blue)">${(window.SWDScores?SWDScores.scoreTermRelevance(r):0)}%</td>`;
+      const val = r[s.field];
+      if(s.field==='category') return `<td><span class="cat-pill cat-${(val||'e').toLowerCase()}">${val||'?'}</span></td>`;
+      if(s.field==='verification_status') return `<td><span class="verif-badge ${VERIF_CLASS[val]||'verif-secondary'}" style="font-size:10px">${esc(val||'')}</span></td>`;
+      if(s.field==='screening_decision'){ const sc3=getScreening(r); return `<td><span class="${SCREEN_CLASS[sc3.decision]||'screen-badge unscreened'}">${esc(sc3.decision||'—')}</span></td>`; }
+      if(s.field==='screening_reason'){ const sc3=getScreening(r); return `<td style="font-size:11px;color:var(--ink-3)">${esc(sc3.reason||'')}</td>`; }
+      if(s.field==='doi' && val && val!=='not reported') return `<td><a class="doi-link" href="https://doi.org/${val}" target="_blank" rel="noopener">DOI →</a></td>`;
+      if(s.field==='url' && val && val!=='not reported') return `<td><a class="doi-link" href="${esc(val)}" target="_blank" rel="noopener">URL →</a></td>`;
+      if(s.field==='full_citation') return `<td class="truncate" title="${esc(String(val||''))}">${esc(String(val||'').split('(')[0].trim().slice(0,40))}</td>`;
+      if(s.field.startsWith('slot_')){ const sv=val||''; return `<td class="truncate" title="${esc(sv)}" style="font-size:11px;color:${sv==='not found'?'var(--ink-3)':'var(--accent)'}">${esc(sv.slice(0,50))}</td>`; }
+      return `<td class="truncate">${esc(String(val||'—'))}</td>`;
+    }).join('') + screenCell + '</tr>';
+  }).join('');
+
+  document.getElementById('table-footer').textContent = `Showing ${startIdx+1}\u2013${Math.min(startIdx+pageSize, totalFiltered)} of ${totalFiltered} records${totalFiltered!==(window._SWDRecords||[]).length?` (filtered from ${(window._SWDRecords||[]).length})`:''}`;
+  renderPaginationControls(totalFiltered);
+};
+
+// ═══════════════════════════════════════════════════════════════
+// EXPORT SCOPE MODAL — wraps every SWDExportFn.* call
+// ═══════════════════════════════════════════════════════════════
+let _pendingExportCall = null;
+
+function withScopeCheck(fn, args){
+  const n = window._SWDSelection.size;
+  if(n === 0){
+    fn(...args);
+    return;
+  }
+  // Show modal
+  const modal = document.getElementById('scope-modal');
+  const countEl = document.getElementById('scope-modal-count');
+  if(countEl) countEl.textContent = n;
+  if(modal) modal.classList.add('visible');
+  _pendingExportCall = { fn, args };
+}
+
+document.getElementById('scope-modal-all')?.addEventListener('click', () => {
+  document.getElementById('scope-modal')?.classList.remove('visible');
+  if(_pendingExportCall) _pendingExportCall.fn(..._pendingExportCall.args);
+  _pendingExportCall = null;
+});
+document.getElementById('scope-modal-selected')?.addEventListener('click', () => {
+  document.getElementById('scope-modal')?.classList.remove('visible');
+  if(_pendingExportCall){
+    const selected = getSelectedRecords();
+    if(!selected.length){ alert('No selected records match this export type.'); _pendingExportCall=null; return; }
+    // Temporarily swap window._SWDRecords to the selection, run export, restore
+    const original = window._SWDRecords;
+    window._SWDRecords = selected;
+    try{ _pendingExportCall.fn(..._pendingExportCall.args); }
+    finally{ window._SWDRecords = original; }
+  }
+  _pendingExportCall = null;
+});
+document.getElementById('scope-modal-cancel')?.addEventListener('click', () => {
+  document.getElementById('scope-modal')?.classList.remove('visible');
+  _pendingExportCall = null;
+});
+document.getElementById('scope-modal')?.addEventListener('click', (e) => {
+  if(e.target === e.currentTarget){ e.currentTarget.classList.remove('visible'); _pendingExportCall=null; }
+});
+
+// Wrap every function in SWDExportFn with the scope check
+(function wrapExportFns(){
+  if(!window.SWDExportFn) return;
+  const original = {...window.SWDExportFn};
+  Object.keys(original).forEach(key => {
+    window.SWDExportFn[key] = function(...args){
+      withScopeCheck(original[key], args);
+    };
+  });
+})();
+
+// Also wrap slot exports
+if(window.SWDSlots){
+  const origExportSlot = window.SWDSlots.exportSlot.bind(window.SWDSlots);
+  const origExportAll = window.SWDSlots.exportAll.bind(window.SWDSlots);
+  window.SWDSlots.exportSlot = function(id){ withScopeCheck(origExportSlot, [id]); };
+  window.SWDSlots.exportAll = function(){ withScopeCheck(origExportAll, []); };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CLEAR-SELECTION CONFIRMATION ON NEW SEARCH
+// ═══════════════════════════════════════════════════════════════
+let _pendingSearchStart = null;
+
+function guardedStartSearch(){
+  if(window._SWDSelection.size > 0){
+    const modal = document.getElementById('clear-sel-modal');
+    const countEl = document.getElementById('clear-sel-count');
+    if(countEl) countEl.textContent = window._SWDSelection.size;
+    if(modal) modal.classList.add('visible');
+    _pendingSearchStart = true;
+    return;
+  }
+  startSearch();
+}
+
+document.getElementById('clear-sel-confirm')?.addEventListener('click', () => {
+  document.getElementById('clear-sel-modal')?.classList.remove('visible');
+  window._SWDSelection.clear();
+  renderSelectionBar();
+  _pendingSearchStart = null;
+  startSearch();
+});
+document.getElementById('clear-sel-cancel')?.addEventListener('click', () => {
+  document.getElementById('clear-sel-modal')?.classList.remove('visible');
+  _pendingSearchStart = null;
+});
+document.getElementById('clear-sel-modal')?.addEventListener('click', (e) => {
+  if(e.target === e.currentTarget){ e.currentTarget.classList.remove('visible'); _pendingSearchStart=null; }
+});
+
+// Re-wire the run buttons to go through the guard instead of calling startSearch directly
+const btnRun = document.getElementById('btn-run');
+const btnStartFromConfig = document.getElementById('btn-start-from-config');
+if(btnRun){
+  const newBtnRun = btnRun.cloneNode(true);
+  btnRun.parentNode.replaceChild(newBtnRun, btnRun);
+  newBtnRun.addEventListener('click', guardedStartSearch);
+}
+if(btnStartFromConfig){
+  const newBtnStart = btnStartFromConfig.cloneNode(true);
+  btnStartFromConfig.parentNode.replaceChild(newBtnStart, btnStartFromConfig);
+  newBtnStart.addEventListener('click', () => { switchTab('run'); guardedStartSearch(); });
+}
+
+// Clear selection automatically once a NEW search actually completes (data replaced)
+document.addEventListener('DOMContentLoaded', () => {}); // no-op guard
+const _selResetObserver = document.getElementById('btn-run');
+// Selection is cleared explicitly in the confirm handler above (before startSearch runs),
+// so no further action needed here — window._SWDRecords gets replaced inside startSearch()
+// and stale keys in _SWDSelection simply won't match any record going forward.
+
+// Initial render of selection bar (in case of preset-restored state)
+renderSelectionBar();
+
 }); // end DOMContentLoaded
