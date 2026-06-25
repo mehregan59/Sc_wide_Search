@@ -151,11 +151,8 @@
         <div class="chip-row" id="discipline-db-panel" style="margin-bottom:.75rem">
           <!-- filled by JS -->
         </div>
-        <div class="db-resgate-note" id="db-resgate-note">
-          &#9888; <strong>ResearchGate</strong> has no public API and cannot be queried programmatically.
-          For ResearchGate coverage, add it to your <em>Known Gaps</em> section and search manually.
-          <a class="db-request-link" onclick="SWDDiscipline.requestNewDB()" style="margin-left:8px">Request a database connector &rarr;</a>
-        </div>
+        <!-- ResearchGate note hidden — removed from all maps in Phase 7b -->
+        <div class="db-resgate-note" id="db-resgate-note" style="display:none"></div>
         <div style="margin-top:.5rem;font-size:11px;color:var(--ink-3)">
           &#128276; Stubs are listed but not yet queried &mdash; connectors added as free public APIs are verified.
           <a class="db-request-link" onclick="SWDDiscipline.requestNewDB()" style="margin-left:6px">Request a database &rarr;</a>
@@ -199,14 +196,14 @@
           <div class="field field-sm"><label for="cfg-max">Max / query</label><input type="number" id="cfg-max" value="500" min="10" max="5000" /></div>
         </div>
         <div class="field"><label for="cfg-langs">Languages <span class="label-hint">(ISO 639-1, comma-separated)</span></label><input type="text" id="cfg-langs" placeholder="en,de,fr,it,es,ja,zh" /></div>
-        <!-- PHASE 7: Requirements panel replaces Geography requirement -->
+        <!-- PHASE 7: Requirements panel -->
         <div class="req-panel">
           <div class="req-panel-header">
             <h2>Search requirements</h2>
             <button class="btn btn-sm btn-ghost" id="btn-add-req">+ Add requirement</button>
           </div>
           <div class="req-panel-info">
-            Requirements are checked against every record after a search. Records that fail one or more enabled requirements are <strong>kept but flagged</strong> with a warning badge &mdash; they are never dropped. You can filter by pass/fail in Results. Add any number of requirements; use the suggestions below or type your own label.
+            Requirements are checked against every record after a search. Records that fail one or more enabled requirements are <strong>kept but flagged</strong> with a warning badge &mdash; they are never dropped. You can filter by pass/fail in Results.
           </div>
           <div class="req-list" id="req-list">
             <p style="font-size:12.5px;color:var(--ink-3)">No requirements set. All records will pass. Add one below or click a suggestion.</p>
@@ -217,30 +214,40 @@
             <span class="req-suggestion-chip" data-type="has_abstract" data-label="Must have abstract" data-value="">&#128196; Must have abstract</span>
             <span class="req-suggestion-chip" data-type="has_coordinates" data-label="Must have coordinates" data-value="">&#127757; Must have coordinates</span>
             <span class="req-suggestion-chip" data-type="year_from" data-label="Year from 2000" data-value="2000">&#128197; Year &ge; 2000</span>
-            <span class="req-suggestion-chip" data-type="abstract_contains" data-label="Abstract contains…" data-value="">&#128269; Abstract contains…</span>
-            <span class="req-suggestion-chip" data-type="title_contains" data-label="Title contains…" data-value="">T Title contains…</span>
+            <span class="req-suggestion-chip" data-type="abstract_contains" data-label="Abstract contains&hellip;" data-value="">&#128269; Abstract contains&hellip;</span>
+            <span class="req-suggestion-chip" data-type="title_contains" data-label="Title contains&hellip;" data-value="">T Title contains&hellip;</span>
             <span class="req-suggestion-chip" data-type="source_type_is" data-label="Journals only" data-value="journal">&#128218; Journals only</span>
             <span class="req-suggestion-chip" data-type="custom_text" data-label="Custom rule" data-value="">+ Custom rule</span>
           </div>
         </div>
-        <!-- hidden legacy field kept for backwards compat -->
         <input type="hidden" id="cfg-geo-req" value="0" />
-        <div class="field">
-          <div class="field-label">Content scope</div>
-          <div class="chip-row" id="chips-scope">
-            <label class="chip"><input type="checkbox" value="first_record" checked> First records</label>
-            <label class="chip"><input type="checkbox" value="monitoring" checked> Monitoring</label>
-            <label class="chip"><input type="checkbox" value="distribution" checked> Distribution</label>
-            <label class="chip"><input type="checkbox" value="lab_strain" checked> Lab colony origin</label>
-            <label class="chip"><input type="checkbox" value="host_plant" checked> Host / subject surveys</label>
-            <label class="chip"><input type="checkbox" value="experimental" checked> Experimental</label>
-            <label class="chip"><input type="checkbox" value="review" checked> Reviews</label>
-            <label class="chip"><input type="checkbox" value="modelling" checked> SDM / modelling</label>
-            <label class="chip"><input type="checkbox" value="theses" checked> Theses</label>
-            <label class="chip"><input type="checkbox" value="grey" checked> Grey literature</label>
-            <label class="chip"><input type="checkbox" value="clinical"> Clinical trials</label>
-            <label class="chip"><input type="checkbox" value="genomics"> Genomics / molecular</label>
+        <!-- PHASE 7b: Content scope — discipline-aware preset + free add -->
+        <div class="scope-section">
+          <div class="field-label">Content scope <span class="label-hint">(syncs with discipline &mdash; annotation only, not a live filter)</span></div>
+          <div class="scope-preset-bar">
+            <select id="scope-preset-select" class="scope-preset-select">
+              <option value="">&#8212; load a preset &#8212;</option>
+              <option value="general">General research</option>
+              <option value="biology">Biology / ecology field study</option>
+              <option value="medicine">Medical / clinical</option>
+              <option value="physics">Physics / astronomy</option>
+              <option value="mathematics">Mathematics / statistics</option>
+              <option value="cs">Computer science / engineering</option>
+              <option value="chemistry">Chemistry / materials</option>
+              <option value="social">Social sciences / humanities</option>
+              <option value="economics">Economics / business</option>
+              <option value="geosciences">Geosciences / earth sciences</option>
+            </select>
           </div>
+          <div class="scope-add-row">
+            <input type="text" id="scope-add-input" class="scope-add-input" placeholder="Add custom scope term&hellip;" />
+            <button class="btn btn-sm btn-ghost" id="btn-add-scope">Add</button>
+          </div>
+          <div class="scope-chips" id="scope-chips">
+            <span class="scope-empty">No scope terms yet &mdash; select a preset or add your own.</span>
+          </div>
+          <!-- Hidden legacy field for getSettings() backwards compat -->
+          <div style="display:none" id="chips-scope"></div>
         </div>
       </div>
       <div class="config-card config-actions">
@@ -280,13 +287,13 @@
         <button class="btn btn-primary" id="btn-add-slot">+ Add slot</button>
       </div>
       <div class="slot-panel-info">
-        <strong>What are extraction slots?</strong> Each slot scans every record&rsquo;s title, abstract, and excerpt for the phrases you define, and records which ones matched. Results appear as extra columns in the Results table and as separate CSV exports after a search. Up to 10 slots &mdash; hover the <em>? guide</em> button on any slot for field-specific examples and tips.
-        <br><br><strong>Tip:</strong> use specific multi-word phrases rather than single common words to reduce false matches. Toggle &ldquo;Partial match&rdquo; for compound terms or word stems.
+        <strong>What are extraction slots?</strong> Each slot scans every record&rsquo;s title, abstract, and excerpt for the phrases you define, and records which ones matched. Results appear as extra columns in the Results table and as separate CSV exports after a search. Up to 10 slots.
+        <br><br><strong>Tip:</strong> use specific multi-word phrases rather than single common words to reduce false matches.
       </div>
       <div class="slot-list" id="slot-list">
         <p style="font-size:13px;color:var(--ink-3)">No extraction slots yet. Click <strong>+ Add slot</strong> to create one.</p>
       </div>
-      <div class="slot-warn" id="slot-warn">&#9888; You have 8+ extraction slots. This may slow extraction on very large result sets. Consider using fewer slots and running targeted searches.</div>
+      <div class="slot-warn" id="slot-warn">&#9888; You have 8+ extraction slots. This may slow extraction on very large result sets.</div>
       <div class="slot-cap" id="slot-cap">Maximum of 10 extraction slots reached. Remove a slot before adding another.</div>
     </div>
   </section>
@@ -394,7 +401,7 @@
   <!-- PAYWALLED -->
   <section class="tab-panel" id="panel-paywall">
     <div class="panel-title"><h1>Paywalled DOIs</h1><p>Every paper found behind a paywall, with DOI and direct access options.</p></div>
-    <div class="paywall-info-box"><strong>How to get these papers legally:</strong><br>1. <strong>Email the author</strong> &mdash; find on Google Scholar or ResearchGate.<br>2. <strong>Interlibrary loan (ILL)</strong> &mdash; your university library, free, usually 24&ndash;48 hours.<br>3. <strong>Unpaywall</strong> &mdash; click the Unpaywall link to check for a legal free version.<br>4. <strong>Europe PMC</strong> &mdash; checks for author manuscripts and preprints.</div>
+    <div class="paywall-info-box"><strong>How to get these papers legally:</strong><br>1. <strong>Email the author</strong> &mdash; find on Google Scholar.<br>2. <strong>Interlibrary loan (ILL)</strong> &mdash; your university library, free, usually 24&ndash;48 hours.<br>3. <strong>Unpaywall</strong> &mdash; click the Unpaywall link to check for a legal free version.<br>4. <strong>Europe PMC</strong> &mdash; checks for author manuscripts and preprints.</div>
     <div class="paywall-toolbar"><input type="text" id="paywall-search" placeholder="Filter by author, title, country, year&hellip;" /><span class="paywall-count" id="paywall-count"></span></div>
     <div class="paywall-actions-bar">
       <button class="btn btn-primary" onclick="SWDExportFn.paywallTxt()">Download DOI list (.txt) &darr;</button>
@@ -409,86 +416,20 @@
     <div class="export-options-card">
       <h3>Export options</h3>
       <div class="export-options-grid">
-        <div>
-          <label class="export-option-row">
-            <input type="checkbox" id="opt-abstract" />
-            <div>
-              <div class="export-option-label">Include abstract <span class="score-tip"><span class="score-tip-icon">? what</span><span class="score-tip-box">Adds the full abstract as an extra column. Records with no abstract show <code>[No abstract available]</code>.</span></span></div>
-              <div class="export-option-desc">Adds a full abstract column to CSV and JSON exports.</div>
-            </div>
-          </label>
-        </div>
-        <div>
-          <label class="export-option-row">
-            <input type="checkbox" id="opt-schema-fit" />
-            <div>
-              <div class="export-option-label">Schema fit % <span class="score-tip"><span class="score-tip-icon">? formula</span><span class="score-tip-box"><strong>Schema fit %</strong><br><code>(extracted fields &divide; enabled fields) &times; 100</code></span></span></div>
-              <div class="export-option-desc">% of schema fields successfully extracted (0&ndash;100%).</div>
-            </div>
-          </label>
-        </div>
-        <div>
-          <label class="export-option-row">
-            <input type="checkbox" id="opt-term-rel" />
-            <div>
-              <div class="export-option-label">Term relevance % <span class="score-tip"><span class="score-tip-icon">? formula</span><span class="score-tip-box"><strong>Term relevance %</strong><br><code>(matched terms &divide; total terms) &times; 100</code></span></span></div>
-              <div class="export-option-desc">% of your search terms found in this record.</div>
-            </div>
-          </label>
-        </div>
+        <div><label class="export-option-row"><input type="checkbox" id="opt-abstract" /><div><div class="export-option-label">Include abstract <span class="score-tip"><span class="score-tip-icon">? what</span><span class="score-tip-box">Adds the full abstract as an extra column.</span></span></div><div class="export-option-desc">Adds a full abstract column to CSV and JSON exports.</div></div></label></div>
+        <div><label class="export-option-row"><input type="checkbox" id="opt-schema-fit" /><div><div class="export-option-label">Schema fit % <span class="score-tip"><span class="score-tip-icon">? formula</span><span class="score-tip-box"><strong>Schema fit %</strong><br><code>(extracted fields &divide; enabled fields) &times; 100</code></span></span></div><div class="export-option-desc">% of schema fields extracted (0&ndash;100%).</div></div></label></div>
+        <div><label class="export-option-row"><input type="checkbox" id="opt-term-rel" /><div><div class="export-option-label">Term relevance % <span class="score-tip"><span class="score-tip-icon">? formula</span><span class="score-tip-box"><strong>Term relevance %</strong><br><code>(matched terms &divide; total terms) &times; 100</code></span></span></div><div class="export-option-desc">% of your search terms found in this record.</div></div></label></div>
       </div>
       <div class="csv-size-warn" id="csv-size-warn"></div>
     </div>
     <div class="export-accordion">
-      <div class="accordion-group" id="acc-citations">
-        <div class="accordion-header"><div class="accordion-header-left"><span class="accordion-icon">&#128196;</span><span class="accordion-title">Citation formats</span><span class="accordion-badge">6 exports</span></div><span class="accordion-chevron">&#9660;</span></div>
-        <div class="accordion-body"><div class="accordion-grid">
-          <div class="acc-card acc-card-featured"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">CSV &mdash; all records</div><div class="acc-card-desc">All categories, respects export options above.</div><button class="btn btn-primary" onclick="SWDExportFn.csv('all')">Download CSV</button></div>
-          <div class="acc-card acc-card-featured"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">CSV &mdash; primary only</div><div class="acc-card-desc">Category A records only.</div><button class="btn btn-primary" onclick="SWDExportFn.csv('A')">Download A-only CSV</button></div>
-          <div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">RIS / EndNote</div><div class="acc-card-desc">Import into EndNote, Zotero, Mendeley, or RefWorks.</div><button class="btn btn-ghost" onclick="SWDExportFn.ris()">Download .ris</button></div>
-          <div class="acc-card"><div class="acc-card-icon">@</div><div class="acc-card-name">BibTeX</div><div class="acc-card-desc">All citations for LaTeX / Zotero.</div><button class="btn btn-ghost" onclick="SWDExportFn.bibtex()">Download .bib</button></div>
-          <div class="acc-card"><div class="acc-card-icon">{}</div><div class="acc-card-name">JSON</div><div class="acc-card-desc">Full records with all fields, abstract, and scores.</div><button class="btn btn-ghost" onclick="SWDExportFn.json()">Download JSON</button></div>
-          <div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">EndNoteXML</div><div class="acc-card-desc">Native EndNote .xml format.</div><button class="btn btn-ghost" onclick="SWDExportFn.endnotexml()">Download .xml</button></div>
-        </div></div>
-      </div>
-      <div class="accordion-group" id="acc-sysrev">
-        <div class="accordion-header"><div class="accordion-header-left"><span class="accordion-icon">&#128300;</span><span class="accordion-title">Systematic review</span><span class="accordion-badge">4 exports</span></div><span class="accordion-chevron">&#9660;</span></div>
-        <div class="accordion-body"><div class="accordion-grid">
-          <div class="acc-card acc-card-featured"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">PRISMA search log</div><div class="acc-card-desc">Query-by-query log, ready for methods section.</div><button class="btn btn-primary" onclick="SWDExportFn.searchLog()">Download search log (.txt)</button></div>
-          <div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">Included records CSV</div><div class="acc-card-desc">Only records marked &ldquo;include&rdquo;.</div><button class="btn btn-ghost" onclick="SWDExportFn.screened('include')">Download included CSV</button></div>
-          <div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">Excluded records CSV</div><div class="acc-card-desc">Records marked &ldquo;exclude&rdquo; with reasons.</div><button class="btn btn-ghost" onclick="SWDExportFn.screened('exclude')">Download excluded CSV</button></div>
-          <div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">Markdown summary</div><div class="acc-card-desc">Session overview for Obsidian, Notion, or GitHub.</div><button class="btn btn-ghost" onclick="SWDExportFn.markdown()">Download .md</button></div>
-        </div></div>
-      </div>
-      <div class="accordion-group" id="acc-extracted">
-        <div class="accordion-header"><div class="accordion-header-left"><span class="accordion-icon">&#128193;</span><span class="accordion-title">Extracted content</span><span class="accordion-badge">GeoJSON + slots</span></div><span class="accordion-chevron">&#9660;</span></div>
-        <div class="accordion-body">
-          <div class="accordion-grid" style="margin-bottom:1rem"><div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">GeoJSON</div><div class="acc-card-desc">Records with coordinates for QGIS or Leaflet.</div><button class="btn btn-ghost" onclick="SWDExportFn.geojson()">Download GeoJSON</button></div></div>
-          <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);margin-bottom:.6rem">Extraction slot exports</div>
-          <div id="acc-slots-export"><p style="font-size:12.5px;color:var(--ink-3)">No extraction slots defined. Add slots in the Schema tab, then run a search.</p></div>
-        </div>
-      </div>
-      <div class="accordion-group" id="acc-config-exports">
-        <div class="accordion-header"><div class="accordion-header-left"><span class="accordion-icon">&#9881;</span><span class="accordion-title">Configuration &amp; raw</span><span class="accordion-badge">4 exports</span></div><span class="accordion-chevron">&#9660;</span></div>
-        <div class="accordion-body"><div class="accordion-grid">
-          <div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">Schema (.json)</div><div class="acc-card-desc">Export your schema to reload or share.</div><button class="btn btn-ghost" onclick="SWDExportFn.schema()">Download schema</button></div>
-          <div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">Known gaps (.txt)</div><div class="acc-card-desc">Hard-to-access sources for your methods.</div><button class="btn btn-ghost" onclick="SWDExportFn.missing()">Download TXT</button></div>
-          <div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">Custom delimiter</div><div class="acc-card-desc">Tab, semicolon, or pipe-delimited.</div><div class="acc-delim-controls"><select id="custom-delim"><option value="tab">Tab (.tsv)</option><option value="semicolon">Semicolon</option><option value="pipe">Pipe |</option></select><select id="custom-quote"><option value="yes">Quote fields</option><option value="none">No quoting</option></select><select id="custom-header"><option value="yes">With header</option><option value="no">No header</option></select></div><button class="btn btn-ghost" onclick="SWDExportFn.delimited()">Download</button></div>
-          <div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">Paywalled DOIs (.txt)</div><div class="acc-card-desc">Full paywalled list with Unpaywall links.</div><button class="btn btn-ghost" onclick="SWDExportFn.paywallTxt()">Download TXT</button></div>
-        </div></div>
-      </div>
-      <div class="accordion-group" id="acc-roadmap">
-        <div class="accordion-header"><div class="accordion-header-left"><span class="accordion-icon">&#128506;</span><span class="accordion-title">Requests &amp; roadmap</span><span class="accordion-badge">2 items</span></div><span class="accordion-chevron">&#9660;</span></div>
-        <div class="accordion-body"><div class="accordion-grid">
-          <div class="acc-card"><div class="acc-card-icon">&#9993;</div><div class="acc-card-name">Request a format</div><div class="acc-card-desc">Need a format not listed? Send an email request.</div><div style="margin-top:.5rem;display:grid;gap:.5rem"><input type="text" id="req-name" placeholder="Your name" style="font-size:12px;padding:5px 8px" /><input type="text" id="req-format" placeholder="Format / target software" style="font-size:12px;padding:5px 8px" /><textarea id="req-fields" placeholder="Fields / columns needed" rows="2" style="font-size:12px;padding:5px 8px;resize:vertical;font-family:var(--mono)"></textarea><textarea id="req-notes" placeholder="Other requirements" rows="2" style="font-size:12px;padding:5px 8px;resize:vertical;font-family:var(--mono)"></textarea></div><button class="btn btn-ghost" style="margin-top:.5rem" onclick="openExportRequest()">Open email request &rarr;</button></div>
-          <div class="acc-card acc-card-coming"><div class="acc-card-icon">&#9203;</div><div class="acc-card-name">PDF matching <span style="font-size:10px;background:var(--paper);padding:1px 5px;border-radius:4px;border:1px solid var(--border);margin-left:4px">coming soon</span></div><div class="acc-card-desc">Match local PDFs to records by DOI. Planned for future release.</div><button class="btn btn-ghost" disabled style="opacity:.5;cursor:not-allowed">Not yet available</button></div>
-        </div></div>
-      </div>
+      <div class="accordion-group" id="acc-citations"><div class="accordion-header"><div class="accordion-header-left"><span class="accordion-icon">&#128196;</span><span class="accordion-title">Citation formats</span><span class="accordion-badge">6 exports</span></div><span class="accordion-chevron">&#9660;</span></div><div class="accordion-body"><div class="accordion-grid"><div class="acc-card acc-card-featured"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">CSV &mdash; all records</div><div class="acc-card-desc">All categories, respects export options above.</div><button class="btn btn-primary" onclick="SWDExportFn.csv('all')">Download CSV</button></div><div class="acc-card acc-card-featured"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">CSV &mdash; primary only</div><div class="acc-card-desc">Category A records only.</div><button class="btn btn-primary" onclick="SWDExportFn.csv('A')">Download A-only CSV</button></div><div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">RIS / EndNote</div><div class="acc-card-desc">Import into EndNote, Zotero, Mendeley.</div><button class="btn btn-ghost" onclick="SWDExportFn.ris()">Download .ris</button></div><div class="acc-card"><div class="acc-card-icon">@</div><div class="acc-card-name">BibTeX</div><div class="acc-card-desc">All citations for LaTeX / Zotero.</div><button class="btn btn-ghost" onclick="SWDExportFn.bibtex()">Download .bib</button></div><div class="acc-card"><div class="acc-card-icon">{}</div><div class="acc-card-name">JSON</div><div class="acc-card-desc">Full records with all fields and scores.</div><button class="btn btn-ghost" onclick="SWDExportFn.json()">Download JSON</button></div><div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">EndNoteXML</div><div class="acc-card-desc">Native EndNote .xml format.</div><button class="btn btn-ghost" onclick="SWDExportFn.endnotexml()">Download .xml</button></div></div></div></div>
+      <div class="accordion-group" id="acc-sysrev"><div class="accordion-header"><div class="accordion-header-left"><span class="accordion-icon">&#128300;</span><span class="accordion-title">Systematic review</span><span class="accordion-badge">4 exports</span></div><span class="accordion-chevron">&#9660;</span></div><div class="accordion-body"><div class="accordion-grid"><div class="acc-card acc-card-featured"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">PRISMA search log</div><div class="acc-card-desc">Query-by-query log, ready for methods section.</div><button class="btn btn-primary" onclick="SWDExportFn.searchLog()">Download search log (.txt)</button></div><div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">Included records CSV</div><div class="acc-card-desc">Only records marked &ldquo;include&rdquo;.</div><button class="btn btn-ghost" onclick="SWDExportFn.screened('include')">Download included CSV</button></div><div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">Excluded records CSV</div><div class="acc-card-desc">Records marked &ldquo;exclude&rdquo; with reasons.</div><button class="btn btn-ghost" onclick="SWDExportFn.screened('exclude')">Download excluded CSV</button></div><div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">Markdown summary</div><div class="acc-card-desc">Session overview for Obsidian, Notion, or GitHub.</div><button class="btn btn-ghost" onclick="SWDExportFn.markdown()">Download .md</button></div></div></div></div>
+      <div class="accordion-group" id="acc-extracted"><div class="accordion-header"><div class="accordion-header-left"><span class="accordion-icon">&#128193;</span><span class="accordion-title">Extracted content</span><span class="accordion-badge">GeoJSON + slots</span></div><span class="accordion-chevron">&#9660;</span></div><div class="accordion-body"><div class="accordion-grid" style="margin-bottom:1rem"><div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">GeoJSON</div><div class="acc-card-desc">Records with coordinates for QGIS or Leaflet.</div><button class="btn btn-ghost" onclick="SWDExportFn.geojson()">Download GeoJSON</button></div></div><div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);margin-bottom:.6rem">Extraction slot exports</div><div id="acc-slots-export"><p style="font-size:12.5px;color:var(--ink-3)">No extraction slots defined. Add slots in the Schema tab, then run a search.</p></div></div></div>
+      <div class="accordion-group" id="acc-config-exports"><div class="accordion-header"><div class="accordion-header-left"><span class="accordion-icon">&#9881;</span><span class="accordion-title">Configuration &amp; raw</span><span class="accordion-badge">4 exports</span></div><span class="accordion-chevron">&#9660;</span></div><div class="accordion-body"><div class="accordion-grid"><div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">Schema (.json)</div><div class="acc-card-desc">Export your schema to reload or share.</div><button class="btn btn-ghost" onclick="SWDExportFn.schema()">Download schema</button></div><div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">Known gaps (.txt)</div><div class="acc-card-desc">Hard-to-access sources for your methods.</div><button class="btn btn-ghost" onclick="SWDExportFn.missing()">Download TXT</button></div><div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">Custom delimiter</div><div class="acc-card-desc">Tab, semicolon, or pipe-delimited.</div><div class="acc-delim-controls"><select id="custom-delim"><option value="tab">Tab (.tsv)</option><option value="semicolon">Semicolon</option><option value="pipe">Pipe |</option></select><select id="custom-quote"><option value="yes">Quote fields</option><option value="none">No quoting</option></select><select id="custom-header"><option value="yes">With header</option><option value="no">No header</option></select></div><button class="btn btn-ghost" onclick="SWDExportFn.delimited()">Download</button></div><div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">Paywalled DOIs (.txt)</div><div class="acc-card-desc">Full paywalled list with Unpaywall links.</div><button class="btn btn-ghost" onclick="SWDExportFn.paywallTxt()">Download TXT</button></div></div></div></div>
+      <div class="accordion-group" id="acc-roadmap"><div class="accordion-header"><div class="accordion-header-left"><span class="accordion-icon">&#128506;</span><span class="accordion-title">Requests &amp; roadmap</span><span class="accordion-badge">2 items</span></div><span class="accordion-chevron">&#9660;</span></div><div class="accordion-body"><div class="accordion-grid"><div class="acc-card"><div class="acc-card-icon">&#9993;</div><div class="acc-card-name">Request a format</div><div class="acc-card-desc">Need a format not listed? Send an email request.</div><div style="margin-top:.5rem;display:grid;gap:.5rem"><input type="text" id="req-name" placeholder="Your name" style="font-size:12px;padding:5px 8px" /><input type="text" id="req-format" placeholder="Format / target software" style="font-size:12px;padding:5px 8px" /><textarea id="req-fields" placeholder="Fields / columns needed" rows="2" style="font-size:12px;padding:5px 8px;resize:vertical;font-family:var(--mono)"></textarea><textarea id="req-notes" placeholder="Other requirements" rows="2" style="font-size:12px;padding:5px 8px;resize:vertical;font-family:var(--mono)"></textarea></div><button class="btn btn-ghost" style="margin-top:.5rem" onclick="openExportRequest()">Open email request &rarr;</button></div><div class="acc-card acc-card-coming"><div class="acc-card-icon">&#9203;</div><div class="acc-card-name">PDF matching <span style="font-size:10px;background:var(--paper);padding:1px 5px;border-radius:4px;border:1px solid var(--border);margin-left:4px">coming soon</span></div><div class="acc-card-desc">Match local PDFs to records by DOI. Planned for future release.</div><button class="btn btn-ghost" disabled style="opacity:.5;cursor:not-allowed">Not yet available</button></div></div></div></div>
     </div>
-    <div class="schema-section" style="margin-top:1.5rem">
-      <h2>Active schema preview</h2>
-      <table class="schema-table"><thead><tr><th>Field key</th><th>Type</th><th>Label &amp; description</th></tr></thead><tbody id="schema-tbody"></tbody></table>
-    </div>
+    <div class="schema-section" style="margin-top:1.5rem"><h2>Active schema preview</h2><table class="schema-table"><thead><tr><th>Field key</th><th>Type</th><th>Label &amp; description</th></tr></thead><tbody id="schema-tbody"></tbody></table></div>
   </section>
 
   <!-- ABOUT -->
@@ -496,48 +437,18 @@
     <div class="panel-title"><h1>About SciWide Search</h1></div>
     <div class="about-layout">
       <div class="about-main">
-        <div class="donate-card">
-          <h2>&#x2665; Support this project</h2>
-          <p>SciWide Search is free to use and will stay that way. If it saved you time on a literature search, a small donation helps cover the time spent maintaining it, fixing things when external APIs change, and building the features people ask for.</p>
-          <a class="donate-btn" href="https://www.paypal.com/donate/?hosted_button_id=4AMEK5KTQHHR4" target="_blank" rel="noopener">Donate via PayPal &rarr;</a>
-          <span style="font-size:11px;color:#7a6090;display:block;margin-top:.4rem">Default amount: 1&nbsp;EUR &mdash; change freely on the PayPal page.</span>
-        </div>
-        <div class="about-section"><h2>Purpose</h2><p>SciWide Search is an open-source tool for systematically collecting and structuring records from academic literature, grey literature, and biodiversity databases. It supports PRISMA-style systematic reviews, meta-analyses, and global distribution mapping across any research topic. Enter any search terms &mdash; it is not limited to any specific organism or field.</p></div>
-        <div class="about-section"><h2>Systematic review support</h2><p>The tool is designed to fit a full PRISMA workflow. The <strong>Search log</strong> export produces a methods-ready query record. The <strong>Screen</strong> column lets you flag records Include / Exclude / Maybe with a free-text reason. <strong>Extraction slots</strong> let you scan every abstract for custom phrase lists. The <strong>Export</strong> tab organises all outputs into five groups.</p></div>
-        <div class="about-section">
-          <h2>Output categories</h2>
-          <dl class="cat-dl">
-            <dt><span class="cat-pill cat-a">A</span> Primary location records</dt><dd>Original collection, trapping, detection, sequencing, or monitoring.</dd>
-            <dt><span class="cat-pill cat-b">B</span> Useful sampling locations</dt><dd>Confirmed presence but not first records.</dd>
-            <dt><span class="cat-pill cat-c">C</span> Lab / experimental strain origin</dt><dd>Geographic origin of laboratory colonies or field material.</dd>
-            <dt><span class="cat-pill cat-d">D</span> Modelling / review</dt><dd>Secondary geographic information from models and reviews.</dd>
-            <dt><span class="cat-pill cat-e">E</span> No usable location</dt><dd>Mentions the topic but no extractable location.</dd>
-            <dt><span class="cat-pill cat-f">F</span> Pre-1980 historical records</dt><dd>Historical records before 1980.</dd>
-          </dl>
-        </div>
+        <div class="donate-card"><h2>&#x2665; Support this project</h2><p>SciWide Search is free to use and will stay that way. If it saved you time on a literature search, a small donation helps cover the time spent maintaining it.</p><a class="donate-btn" href="https://www.paypal.com/donate/?hosted_button_id=4AMEK5KTQHHR4" target="_blank" rel="noopener">Donate via PayPal &rarr;</a><span style="font-size:11px;color:#7a6090;display:block;margin-top:.4rem">Default amount: 1&nbsp;EUR &mdash; change freely on the PayPal page.</span></div>
+        <div class="about-section"><h2>Purpose</h2><p>SciWide Search is an open-source tool for systematically collecting and structuring records from academic literature, grey literature, and biodiversity databases. It supports PRISMA-style systematic reviews, meta-analyses, and global distribution mapping across any research topic.</p></div>
+        <div class="about-section"><h2>Systematic review support</h2><p>The tool is designed to fit a full PRISMA workflow. The <strong>Search log</strong> export produces a methods-ready query record. The <strong>Screen</strong> column lets you flag records Include / Exclude / Maybe with a free-text reason. <strong>Extraction slots</strong> let you scan every abstract for custom phrase lists.</p></div>
+        <div class="about-section"><h2>Output categories</h2><dl class="cat-dl"><dt><span class="cat-pill cat-a">A</span> Primary location records</dt><dd>Original collection, trapping, detection, sequencing, or monitoring.</dd><dt><span class="cat-pill cat-b">B</span> Useful sampling locations</dt><dd>Confirmed presence but not first records.</dd><dt><span class="cat-pill cat-c">C</span> Lab / experimental strain origin</dt><dd>Geographic origin of laboratory colonies or field material.</dd><dt><span class="cat-pill cat-d">D</span> Modelling / review</dt><dd>Secondary geographic information from models and reviews.</dd><dt><span class="cat-pill cat-e">E</span> No usable location</dt><dd>Mentions the topic but no extractable location.</dd><dt><span class="cat-pill cat-f">F</span> Pre-1980 historical records</dt><dd>Historical records before 1980.</dd></dl></div>
         <div class="about-section"><h2>Cite this tool</h2><div class="citation-box">Ebrahimi, M. (2026). SciWide Search [Software]. https://github.com/mehregan59/Sc_wide_Search</div><button class="btn btn-ghost" onclick="copyCitation(this)">Copy citation</button></div>
         <div class="about-section"><h2>Creator</h2><p><strong>Mehregan Ebrahimi</strong><br>GitHub: <a href="https://github.com/mehregan59" target="_blank" rel="noopener">github.com/mehregan59</a><br>Email: <em>mehregan.ebrahimi@gmail.com</em></p></div>
         <div class="about-section"><h2>License</h2><p>Released under the <strong>MIT License</strong>. Free to use, modify, and distribute. The author reserves the right to release future versions under a different license. See <a href="https://github.com/mehregan59/Sc_wide_Search/blob/main/LICENSE" target="_blank" rel="noopener">LICENSE</a>.</p></div>
         <div class="about-section"><h2>APIs used</h2><p>All public and free: OpenAlex, Europe PMC, PubMed (via Europe PMC), Crossref, arXiv, bioRxiv / medRxiv, GBIF, iNaturalist, Zenodo. Institutional databases listed as stubs &mdash; connectors added as CORS feasibility is confirmed.</p></div>
       </div>
       <div class="about-side">
-        <div class="about-links">
-          <h3>Quick links</h3>
-          <a href="https://github.com/mehregan59/Sc_wide_Search" target="_blank" rel="noopener">GitHub repository &rarr;</a>
-          <a href="https://mehregan59.github.io/Sc_wide_Search" target="_blank" rel="noopener">Live app &rarr;</a>
-          <a href="https://github.com/mehregan59/Sc_wide_Search/blob/main/LICENSE" target="_blank" rel="noopener">License &rarr;</a>
-          <a href="https://www.paypal.com/donate/?hosted_button_id=4AMEK5KTQHHR4" target="_blank" rel="noopener">Donate &rarr;</a>
-        </div>
-        <div class="about-links">
-          <h3>APIs</h3>
-          <a href="https://api.openalex.org" target="_blank" rel="noopener">OpenAlex &rarr;</a>
-          <a href="https://europepmc.org" target="_blank" rel="noopener">Europe PMC / PubMed &rarr;</a>
-          <a href="https://api.crossref.org" target="_blank" rel="noopener">Crossref &rarr;</a>
-          <a href="https://export.arxiv.org" target="_blank" rel="noopener">arXiv &rarr;</a>
-          <a href="https://www.gbif.org/developer/summary" target="_blank" rel="noopener">GBIF &rarr;</a>
-          <a href="https://api.inaturalist.org/v1/docs/" target="_blank" rel="noopener">iNaturalist &rarr;</a>
-          <a href="https://zenodo.org/api" target="_blank" rel="noopener">Zenodo &rarr;</a>
-        </div>
+        <div class="about-links"><h3>Quick links</h3><a href="https://github.com/mehregan59/Sc_wide_Search" target="_blank" rel="noopener">GitHub repository &rarr;</a><a href="https://mehregan59.github.io/Sc_wide_Search" target="_blank" rel="noopener">Live app &rarr;</a><a href="https://github.com/mehregan59/Sc_wide_Search/blob/main/LICENSE" target="_blank" rel="noopener">License &rarr;</a><a href="https://www.paypal.com/donate/?hosted_button_id=4AMEK5KTQHHR4" target="_blank" rel="noopener">Donate &rarr;</a></div>
+        <div class="about-links"><h3>APIs</h3><a href="https://api.openalex.org" target="_blank" rel="noopener">OpenAlex &rarr;</a><a href="https://europepmc.org" target="_blank" rel="noopener">Europe PMC / PubMed &rarr;</a><a href="https://api.crossref.org" target="_blank" rel="noopener">Crossref &rarr;</a><a href="https://export.arxiv.org" target="_blank" rel="noopener">arXiv &rarr;</a><a href="https://www.gbif.org/developer/summary" target="_blank" rel="noopener">GBIF &rarr;</a><a href="https://api.inaturalist.org/v1/docs/" target="_blank" rel="noopener">iNaturalist &rarr;</a><a href="https://zenodo.org/api" target="_blank" rel="noopener">Zenodo &rarr;</a></div>
       </div>
     </div>
   </section>
