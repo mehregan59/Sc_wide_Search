@@ -166,7 +166,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .missing-item:first-child { border-top: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0; }
 .missing-item:last-child { border-radius: 0 0 var(--radius) var(--radius); }
 
-/* ─── Export tab (legacy flat grid — kept for fallback) ── */
+/* ─── Export tab ── */
 .export-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem; }
 .export-card { display: flex; flex-direction: column; gap: .5rem; padding: 1.25rem; }
 .export-featured { border-color: var(--accent); }
@@ -210,7 +210,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .log-box::-webkit-scrollbar-thumb, .table-wrap::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 3px; }
 
 /* ═══════════════════════════════════════════════════
-   FEATURE 1 — EXTRACTION SLOTS (Schema tab sub-panel)
+   FEATURE 1 — EXTRACTION SLOTS
 ═══════════════════════════════════════════════════ */
 .slot-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-top: 1.5rem; }
 .slot-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px; }
@@ -230,13 +230,11 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .slot-phrases { width: 100%; height: 72px; font-family: var(--mono); font-size: 12px; padding: 7px 9px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--ink); resize: vertical; line-height: 1.55; }
 .slot-phrases:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(45,90,61,.08); }
 .slot-hint { font-size: 11px; color: var(--ink-3); margin-top: 5px; line-height: 1.5; }
-/* tooltip on hover */
 .slot-tip { position: relative; display: inline-block; }
 .slot-tip-icon { font-size: 11px; color: var(--accent); cursor: help; border-bottom: 1px dashed var(--accent); }
 .slot-tip-box { display: none; position: absolute; left: 0; top: calc(100% + 6px); z-index: 200; background: var(--ink); color: #fff; font-size: 11.5px; line-height: 1.6; padding: 10px 13px; border-radius: var(--radius-lg); width: 280px; box-shadow: 0 4px 16px rgba(0,0,0,.18); pointer-events: none; }
 .slot-tip:hover .slot-tip-box { display: block; }
 .slot-tip-box::before { content: ''; position: absolute; top: -5px; left: 10px; border: 5px solid transparent; border-bottom-color: var(--ink); border-top: none; }
-/* warning banners */
 .slot-warn { background: var(--amber-lt); border: 1px solid #f9c74f; border-radius: var(--radius-lg); padding: .6rem 1rem; font-size: 12px; color: var(--amber); margin-top: .75rem; display: none; }
 .slot-warn.visible { display: block; }
 .slot-cap { background: var(--red-lt); border: 1px solid #e08080; border-radius: var(--radius-lg); padding: .6rem 1rem; font-size: 12px; color: var(--red); margin-top: .75rem; display: none; }
@@ -245,7 +243,6 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 /* ═══════════════════════════════════════════════════
    FEATURE 2 — RELEVANCE SCORES & ABSTRACT EXPORT
 ═══════════════════════════════════════════════════ */
-/* Global export options card (above accordion) */
 .export-options-card { background: #f0edf7; border: 1px solid #b8a8d8; border-radius: var(--radius-lg); padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; }
 .export-options-card h3 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: #4b3268; margin-bottom: 1rem; }
 .export-options-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
@@ -253,13 +250,11 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .export-option-row input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); margin-top: 2px; flex-shrink: 0; cursor: pointer; }
 .export-option-label { font-size: 13px; font-weight: 500; color: var(--ink); cursor: pointer; }
 .export-option-desc { font-size: 11.5px; color: var(--ink-3); line-height: 1.5; margin-top: 2px; }
-/* score tooltip */
 .score-tip { position: relative; display: inline-block; }
 .score-tip-icon { font-size: 11px; color: #4b3268; cursor: help; border-bottom: 1px dashed #4b3268; }
 .score-tip-box { display: none; position: absolute; left: 0; top: calc(100% + 6px); z-index: 200; background: var(--ink); color: #fff; font-size: 11.5px; line-height: 1.65; padding: 10px 13px; border-radius: var(--radius-lg); width: 300px; box-shadow: 0 4px 16px rgba(0,0,0,.18); pointer-events: none; }
 .score-tip:hover .score-tip-box { display: block; }
 .score-tip-box code { background: rgba(255,255,255,.15); padding: 1px 5px; border-radius: 3px; font-family: var(--mono); font-size: 11px; }
-/* size warning */
 .csv-size-warn { background: var(--amber-lt); border: 1px solid #f9c74f; border-radius: var(--radius); padding: .5rem .9rem; font-size: 12px; color: var(--amber); margin-top: .75rem; display: none; }
 .csv-size-warn.visible { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
@@ -286,7 +281,6 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .acc-card-name { font-size: 13px; font-weight: 600; color: var(--ink); }
 .acc-card-desc { font-size: 11.5px; color: var(--ink-3); line-height: 1.5; flex: 1; }
 .acc-card .btn { margin-top: .25rem; font-size: 12px; padding: 6px 14px; }
-/* custom delimiter mini-controls inside card */
 .acc-delim-controls { display: flex; gap: 5px; flex-wrap: wrap; margin: .4rem 0; }
 .acc-delim-controls select { font-size: 11.5px; padding: 3px 6px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); flex: 1; min-width: 80px; }
 
@@ -340,13 +334,10 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
   .about-side { position: static; }
   .about-section { padding: 1rem; }
   .export-card { padding: 1rem; }
-  /* Feature 1 */
   .slot-card { padding: .875rem; }
   .slot-card-header { gap: 7px; }
   .slot-tip-box { width: 220px; }
-  /* Feature 2 */
   .export-options-grid { grid-template-columns: 1fr; }
-  /* Feature 3 */
   .accordion-grid { grid-template-columns: 1fr; }
   .accordion-header { padding: .75rem 1rem; }
   .score-tip-box { width: 230px; left: auto; right: 0; }
@@ -374,12 +365,10 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .row-select-cell input[type="checkbox"], .select-all-checkbox { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
 .results-table tr.row-selected td { background: #eef6f1; }
 .results-table tr.row-selected.row-include td { background: #d9f0e0; }
-
 .selection-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: .55rem .9rem; background: var(--accent-lt); border: 1px solid var(--accent); border-radius: var(--radius-lg); margin-bottom: .75rem; font-size: 12.5px; color: var(--accent); display: none; }
 .selection-bar.visible { display: flex; }
 .selection-bar strong { font-weight: 700; }
 .selection-bar .btn { font-size: 11.5px; padding: 4px 10px; }
-
 .pagination-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 10px; padding: 0 2px; }
 .pagination-controls { display: flex; align-items: center; gap: 6px; }
 .pagination-controls button { padding: 5px 11px; font-size: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--ink-2); cursor: pointer; transition: all .12s; }
@@ -389,8 +378,6 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .pagination-size-select { font-size: 12px; padding: 5px 9px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--ink-2); }
 .pagination-size-label { font-size: 12px; color: var(--ink-3); }
 .pagination-allwarn { font-size: 11px; color: var(--amber); margin-left: 8px; }
-
-/* Export scope modal */
 .scope-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 10000; align-items: center; justify-content: center; padding: 1rem; }
 .scope-modal.visible { display: flex; }
 .scope-modal-box { background: var(--surface); border-radius: var(--radius-lg); padding: 1.75rem; width: 420px; max-width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,.25); text-align: center; }
@@ -400,19 +387,56 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .scope-modal-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 .scope-modal-btns .btn { flex: 1; min-width: 140px; padding: 10px 16px; font-size: 13.5px; }
 .scope-modal-cancel { display: block; margin: 1rem auto 0; font-size: 12px; color: var(--ink-3); background: none; border: none; cursor: pointer; text-decoration: underline; }
-
-/* New-search confirmation modal (selection clearing) */
 .clear-sel-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 10000; align-items: center; justify-content: center; padding: 1rem; }
 .clear-sel-modal.visible { display: flex; }
 .clear-sel-modal-box { background: var(--surface); border-radius: var(--radius-lg); padding: 1.75rem; width: 420px; max-width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,.25); }
 .clear-sel-modal-box h3 { font-size: 15px; font-weight: 700; color: var(--ink); margin-bottom: .6rem; }
 .clear-sel-modal-box p { font-size: 13px; color: var(--ink-2); line-height: 1.6; margin-bottom: 1.25rem; }
 .clear-sel-modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
-
 @media (max-width: 600px) {
   .pagination-bar { flex-direction: column; align-items: stretch; gap: 8px; }
   .pagination-controls { justify-content: center; flex-wrap: wrap; }
   .scope-modal-box, .clear-sel-modal-box { padding: 1.25rem; }
   .scope-modal-btns { flex-direction: column; }
   .scope-modal-btns .btn { width: 100%; }
+}
+
+/* ═══════════════════════════════════════════════════
+   PHASE 7 — CUSTOM REQUIREMENTS + DISCIPLINE DB SELECTOR
+═══════════════════════════════════════════════════ */
+.req-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: .75rem; }
+.req-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .875rem; flex-wrap: wrap; gap: 8px; }
+.req-panel-header h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); margin: 0; }
+.req-panel-info { font-size: 12px; color: var(--ink-3); margin-bottom: 1rem; line-height: 1.5; }
+.req-list { display: flex; flex-direction: column; gap: .6rem; margin-bottom: .75rem; }
+.req-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-lg); flex-wrap: wrap; }
+.req-row.req-enabled { border-left: 3px solid var(--accent); }
+.req-row.req-disabled { opacity: .55; border-left: 3px solid var(--border-2); }
+.req-enable-toggle { width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+.req-label { flex: 1; min-width: 120px; font-size: 13px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--ink); }
+.req-type-select { font-size: 12px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--paper); color: var(--ink); min-width: 160px; }
+.req-value { flex: 1; min-width: 120px; font-size: 12px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--ink); font-family: var(--mono); }
+.req-remove { background: none; border: 1px solid var(--border); border-radius: var(--radius); padding: 3px 8px; font-size: 11px; color: var(--red); cursor: pointer; flex-shrink: 0; transition: all .12s; }
+.req-remove:hover { background: var(--red-lt); border-color: var(--red); }
+.req-add-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-top: .5rem; border-top: 1px solid var(--border); }
+.req-suggestion-chips { display: flex; gap: 6px; flex-wrap: wrap; padding-top: .5rem; }
+.req-suggestion-chip { font-size: 11px; padding: 3px 9px; border: 1px dashed var(--border-2); border-radius: 20px; cursor: pointer; color: var(--ink-3); background: var(--paper); transition: all .12s; }
+.req-suggestion-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-lt); }
+.req-fail-badge { display: inline-block; font-size: 9.5px; font-weight: 600; font-family: var(--mono); background: var(--amber-lt); color: var(--amber); border: 1px solid #f9c74f; border-radius: 3px; padding: 1px 5px; white-space: nowrap; }
+.req-pass-badge { display: inline-block; font-size: 9.5px; font-weight: 600; font-family: var(--mono); background: #e8f5e9; color: #2e7d32; border: 1px solid #81c784; border-radius: 3px; padding: 1px 5px; white-space: nowrap; }
+tr.req-fail-row td { background: #fffbf0 !important; }
+.db-discipline-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; flex-wrap: wrap; }
+.db-discipline-label { font-size: 12px; font-weight: 500; color: var(--ink-2); white-space: nowrap; }
+.db-discipline-select { font-size: 13px; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--paper); color: var(--ink); flex: 1; min-width: 180px; max-width: 340px; }
+.db-discipline-hint { font-size: 11.5px; color: var(--ink-3); }
+.db-stub-note { font-size: 11px; color: var(--ink-3); font-style: italic; margin-left: 4px; }
+.db-resgate-note { background: var(--amber-lt); border: 1px solid #f9c74f; border-radius: var(--radius); padding: .5rem .75rem; font-size: 12px; color: var(--amber); margin-top: .5rem; display: none; }
+.db-resgate-note.visible { display: block; }
+.db-request-link { font-size: 12px; color: var(--accent); text-decoration: none; border-bottom: 1px dashed var(--accent); cursor: pointer; }
+.db-request-link:hover { color: var(--ink); }
+@media (max-width: 600px) {
+  .req-row { gap: 6px; }
+  .req-type-select { min-width: 120px; }
+  .req-label, .req-value { min-width: 80px; }
+  .db-discipline-select { max-width: 100%; }
 }
