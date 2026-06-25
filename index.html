@@ -128,42 +128,66 @@
         <div class="field"><label for="cfg-exclude">Exclude terms <span class="label-hint">(one per line)</span></label><textarea id="cfg-exclude" rows="2" placeholder="e.g. Drosophila melanogaster"></textarea></div>
         <div class="field"><label for="cfg-missing">Known gaps &amp; hard-to-access sources <span class="label-hint">(one per line &mdash; exported to your methods section)</span></label><textarea id="cfg-missing" rows="4" placeholder="e.g. NARO Japan grey literature 1985&#8211;1999"></textarea></div>
       </div>
+      <!-- PHASE 7: Discipline-based database selector -->
       <div class="config-card">
         <h2>Databases</h2>
-        <div class="db-group">
-          <div class="db-group-label">Academic &amp; preprint</div>
-          <div class="chip-row" id="chips-academic">
-            <label class="chip"><input type="checkbox" value="semanticscholar" checked> Semantic Scholar</label>
-            <label class="chip"><input type="checkbox" value="openalex" checked> OpenAlex</label>
-            <label class="chip"><input type="checkbox" value="europepmc" checked> Europe PMC</label>
-            <label class="chip"><input type="checkbox" value="pubmed" checked> PubMed</label>
-            <label class="chip"><input type="checkbox" value="crossref" checked> Crossref</label>
-            <label class="chip"><input type="checkbox" value="arxiv"> arXiv</label>
-            <label class="chip"><input type="checkbox" value="biorxiv"> bioRxiv / medRxiv</label>
-            <label class="chip"><input type="checkbox" value="zenodo" checked> Zenodo</label>
-            <label class="chip"><input type="checkbox" value="unpaywall"> Unpaywall</label>
-            <label class="chip"><input type="checkbox" value="base"> BASE</label>
-          </div>
+        <div class="db-discipline-bar">
+          <span class="db-discipline-label">&#127891; Discipline:</span>
+          <select id="db-discipline-select" class="db-discipline-select">
+            <option value="general">General / All disciplines</option>
+            <option value="biology">Biology &amp; Life Sciences</option>
+            <option value="ecology">Ecology &amp; Environmental Science</option>
+            <option value="medicine">Medicine &amp; Health Sciences</option>
+            <option value="physics">Physics &amp; Astronomy</option>
+            <option value="mathematics">Mathematics &amp; Statistics</option>
+            <option value="cs">Computer Science &amp; Engineering</option>
+            <option value="chemistry">Chemistry &amp; Materials Science</option>
+            <option value="social">Social Sciences &amp; Humanities</option>
+            <option value="economics">Economics &amp; Business</option>
+            <option value="geosciences">Geosciences &amp; Earth Sciences</option>
+          </select>
+          <span class="db-discipline-hint">Suggests relevant databases. Override freely.</span>
         </div>
-        <div class="db-group">
-          <div class="db-group-label">Government &amp; institutional <span style="font-size:10px;opacity:.6">(stubs &mdash; connectors planned)</span></div>
-          <div class="chip-row" id="chips-gov">
-            <label class="chip"><input type="checkbox" value="eppo"> EPPO Global DB</label>
-            <label class="chip"><input type="checkbox" value="cabi"> CABI</label>
-            <label class="chip"><input type="checkbox" value="usda"> USDA / NAL</label>
-            <label class="chip"><input type="checkbox" value="jki"> JKI Germany</label>
-            <label class="chip"><input type="checkbox" value="naro"> NARO Japan</label>
-            <label class="chip"><input type="checkbox" value="caas"> CAAS China</label>
-            <label class="chip"><input type="checkbox" value="rda"> RDA Korea</label>
-          </div>
+        <div class="chip-row" id="discipline-db-panel" style="margin-bottom:.75rem">
+          <!-- filled by JS -->
         </div>
-        <div class="db-group">
-          <div class="db-group-label">Biodiversity &amp; occurrence</div>
-          <div class="chip-row" id="chips-bio">
-            <label class="chip"><input type="checkbox" value="gbif" checked> GBIF</label>
-            <label class="chip"><input type="checkbox" value="inat" checked> iNaturalist</label>
-            <label class="chip"><input type="checkbox" value="bold"> BOLD</label>
-            <label class="chip"><input type="checkbox" value="ncbi"> NCBI</label>
+        <div class="db-resgate-note" id="db-resgate-note">
+          &#9888; <strong>ResearchGate</strong> has no public API and cannot be queried programmatically.
+          For ResearchGate coverage, add it to your <em>Known Gaps</em> section and search manually.
+          <a class="db-request-link" onclick="SWDDiscipline.requestNewDB()" style="margin-left:8px">Request a database connector &rarr;</a>
+        </div>
+        <div style="margin-top:.5rem;font-size:11px;color:var(--ink-3)">
+          &#128276; Stubs are listed but not yet queried &mdash; connectors added as free public APIs are verified.
+          <a class="db-request-link" onclick="SWDDiscipline.requestNewDB()" style="margin-left:6px">Request a database &rarr;</a>
+        </div>
+        <!-- Hidden legacy chip groups kept for backwards compatibility with getSettings() -->
+        <div style="display:none">
+          <div id="chips-academic">
+            <label><input type="checkbox" value="semanticscholar" checked /></label>
+            <label><input type="checkbox" value="openalex" checked /></label>
+            <label><input type="checkbox" value="europepmc" checked /></label>
+            <label><input type="checkbox" value="pubmed" /></label>
+            <label><input type="checkbox" value="crossref" checked /></label>
+            <label><input type="checkbox" value="arxiv" /></label>
+            <label><input type="checkbox" value="biorxiv" /></label>
+            <label><input type="checkbox" value="zenodo" checked /></label>
+            <label><input type="checkbox" value="unpaywall" /></label>
+            <label><input type="checkbox" value="base" /></label>
+          </div>
+          <div id="chips-gov">
+            <label><input type="checkbox" value="eppo" /></label>
+            <label><input type="checkbox" value="cabi" /></label>
+            <label><input type="checkbox" value="usda" /></label>
+            <label><input type="checkbox" value="jki" /></label>
+            <label><input type="checkbox" value="naro" /></label>
+            <label><input type="checkbox" value="caas" /></label>
+            <label><input type="checkbox" value="rda" /></label>
+          </div>
+          <div id="chips-bio">
+            <label><input type="checkbox" value="gbif" checked /></label>
+            <label><input type="checkbox" value="inat" checked /></label>
+            <label><input type="checkbox" value="bold" /></label>
+            <label><input type="checkbox" value="ncbi" /></label>
           </div>
         </div>
       </div>
@@ -175,13 +199,32 @@
           <div class="field field-sm"><label for="cfg-max">Max / query</label><input type="number" id="cfg-max" value="500" min="10" max="5000" /></div>
         </div>
         <div class="field"><label for="cfg-langs">Languages <span class="label-hint">(ISO 639-1, comma-separated)</span></label><input type="text" id="cfg-langs" placeholder="en,de,fr,it,es,ja,zh" /></div>
-        <div class="field"><label for="cfg-geo-req">Geography requirement</label>
-          <select id="cfg-geo-req">
-            <option value="0">None &mdash; include all, extract from text</option>
-            <option value="1">Soft &mdash; prefer geo mentions, do not exclude</option>
-            <option value="2">Strict &mdash; title/abstract must mention location</option>
-          </select>
+        <!-- PHASE 7: Requirements panel replaces Geography requirement -->
+        <div class="req-panel">
+          <div class="req-panel-header">
+            <h2>Search requirements</h2>
+            <button class="btn btn-sm btn-ghost" id="btn-add-req">+ Add requirement</button>
+          </div>
+          <div class="req-panel-info">
+            Requirements are checked against every record after a search. Records that fail one or more enabled requirements are <strong>kept but flagged</strong> with a warning badge &mdash; they are never dropped. You can filter by pass/fail in Results. Add any number of requirements; use the suggestions below or type your own label.
+          </div>
+          <div class="req-list" id="req-list">
+            <p style="font-size:12.5px;color:var(--ink-3)">No requirements set. All records will pass. Add one below or click a suggestion.</p>
+          </div>
+          <div class="req-suggestion-chips">
+            <span class="req-suggestion-chip" data-type="has_country" data-label="Must have country" data-value="">&#128205; Must have country</span>
+            <span class="req-suggestion-chip" data-type="has_doi" data-label="Must have DOI" data-value="">&#128279; Must have DOI</span>
+            <span class="req-suggestion-chip" data-type="has_abstract" data-label="Must have abstract" data-value="">&#128196; Must have abstract</span>
+            <span class="req-suggestion-chip" data-type="has_coordinates" data-label="Must have coordinates" data-value="">&#127757; Must have coordinates</span>
+            <span class="req-suggestion-chip" data-type="year_from" data-label="Year from 2000" data-value="2000">&#128197; Year &ge; 2000</span>
+            <span class="req-suggestion-chip" data-type="abstract_contains" data-label="Abstract contains…" data-value="">&#128269; Abstract contains…</span>
+            <span class="req-suggestion-chip" data-type="title_contains" data-label="Title contains…" data-value="">T Title contains…</span>
+            <span class="req-suggestion-chip" data-type="source_type_is" data-label="Journals only" data-value="journal">&#128218; Journals only</span>
+            <span class="req-suggestion-chip" data-type="custom_text" data-label="Custom rule" data-value="">+ Custom rule</span>
+          </div>
         </div>
+        <!-- hidden legacy field kept for backwards compat -->
+        <input type="hidden" id="cfg-geo-req" value="0" />
         <div class="field">
           <div class="field-label">Content scope</div>
           <div class="chip-row" id="chips-scope">
@@ -231,8 +274,6 @@
       </div>
       <div style="margin-top:.75rem"><button class="btn btn-primary" id="btn-add-custom-field">Add field &rarr;</button></div>
     </div>
-
-    <!-- EXTRACTION SLOTS — Phase 5 Feature 1 -->
     <div class="slot-panel">
       <div class="slot-panel-header">
         <h3>Extraction slots</h3>
@@ -319,6 +360,7 @@
       </div>
       <div class="search-filter-row">
         <input type="text" id="res-search" placeholder="Filter any visible field&hellip;" />
+        <select id="res-req-filter"><option value="">All (pass &amp; fail)</option><option value="pass">Passing requirements</option><option value="fail">Failing requirements</option></select>
         <select id="res-verif"><option value="">All verification statuses</option><option>Verified</option><option>Partly verified</option><option>Needs manual check</option><option>Secondary citation only</option><option>No usable location</option></select>
         <select id="res-screen-filter"><option value="">All screening states</option><option value="include">Included</option><option value="maybe">Maybe</option><option value="exclude">Excluded</option><option value="unscreened">Unscreened</option></select>
         <select id="res-sort"><option value="year_desc">Year &darr;</option><option value="year_asc">Year &uarr;</option><option value="country_asc">Country A&ndash;Z</option><option value="verif">Verification</option></select>
@@ -361,11 +403,9 @@
     <div class="paywall-list" id="paywall-list"><div class="paywall-empty">Run a search &mdash; paywalled papers appear here automatically.</div></div>
   </section>
 
-  <!-- EXPORT — Phase 5: options card + 5-group accordion -->
+  <!-- EXPORT -->
   <section class="tab-panel" id="panel-export">
     <div class="panel-title"><h1>Export</h1><p>Select a category to expand it. All exports reflect your active schema and screening decisions.</p></div>
-
-    <!-- Global export options (Feature 2) -->
     <div class="export-options-card">
       <h3>Export options</h3>
       <div class="export-options-grid">
@@ -373,9 +413,7 @@
           <label class="export-option-row">
             <input type="checkbox" id="opt-abstract" />
             <div>
-              <div class="export-option-label">Include abstract
-                <span class="score-tip"><span class="score-tip-icon">? what</span><span class="score-tip-box">Adds the full abstract as an extra column. Records with no abstract show <code>[No abstract available]</code>. May increase file size significantly for large result sets.</span></span>
-              </div>
+              <div class="export-option-label">Include abstract <span class="score-tip"><span class="score-tip-icon">? what</span><span class="score-tip-box">Adds the full abstract as an extra column. Records with no abstract show <code>[No abstract available]</code>.</span></span></div>
               <div class="export-option-desc">Adds a full abstract column to CSV and JSON exports.</div>
             </div>
           </label>
@@ -384,10 +422,8 @@
           <label class="export-option-row">
             <input type="checkbox" id="opt-schema-fit" />
             <div>
-              <div class="export-option-label">Schema fit %
-                <span class="score-tip"><span class="score-tip-icon">? formula</span><span class="score-tip-box"><strong>Schema fit %</strong><br>How many of your enabled schema fields were successfully extracted for this record.<br><br><code>(extracted fields &divide; enabled fields) &times; 100</code><br><br>Higher = more data-rich record. Useful for prioritising manual review.</span></span>
-              </div>
-              <div class="export-option-desc">Adds a column showing % of schema fields successfully extracted (0&ndash;100%).</div>
+              <div class="export-option-label">Schema fit % <span class="score-tip"><span class="score-tip-icon">? formula</span><span class="score-tip-box"><strong>Schema fit %</strong><br><code>(extracted fields &divide; enabled fields) &times; 100</code></span></span></div>
+              <div class="export-option-desc">% of schema fields successfully extracted (0&ndash;100%).</div>
             </div>
           </label>
         </div>
@@ -395,219 +431,60 @@
           <label class="export-option-row">
             <input type="checkbox" id="opt-term-rel" />
             <div>
-              <div class="export-option-label">Term relevance %
-                <span class="score-tip"><span class="score-tip-icon">? formula</span><span class="score-tip-box"><strong>Term relevance %</strong><br>How many of your search terms appear in this record&rsquo;s title and abstract.<br><br><code>(matched terms &divide; total search terms) &times; 100</code><br><br>Higher = more of your search vocabulary is present. Useful for ranking topical relevance.</span></span>
-              </div>
-              <div class="export-option-desc">Adds a column showing % of your search terms found in this record.</div>
+              <div class="export-option-label">Term relevance % <span class="score-tip"><span class="score-tip-icon">? formula</span><span class="score-tip-box"><strong>Term relevance %</strong><br><code>(matched terms &divide; total terms) &times; 100</code></span></span></div>
+              <div class="export-option-desc">% of your search terms found in this record.</div>
             </div>
           </label>
         </div>
       </div>
       <div class="csv-size-warn" id="csv-size-warn"></div>
     </div>
-
-    <!-- 5-group accordion (Feature 3) -->
     <div class="export-accordion">
-
-      <!-- Group 1: Citation formats -->
       <div class="accordion-group" id="acc-citations">
-        <div class="accordion-header">
-          <div class="accordion-header-left">
-            <span class="accordion-icon">&#128196;</span>
-            <span class="accordion-title">Citation formats</span>
-            <span class="accordion-badge">6 exports</span>
-          </div>
-          <span class="accordion-chevron">&#9660;</span>
-        </div>
-        <div class="accordion-body">
-          <div class="accordion-grid">
-            <div class="acc-card acc-card-featured">
-              <div class="acc-card-icon">&#11015;</div>
-              <div class="acc-card-name">CSV &mdash; all records</div>
-              <div class="acc-card-desc">All categories with screening column. Respects export options above (abstract, scores).</div>
-              <button class="btn btn-primary" onclick="SWDExportFn.csv('all')">Download CSV</button>
-            </div>
-            <div class="acc-card acc-card-featured">
-              <div class="acc-card-icon">&#11015;</div>
-              <div class="acc-card-name">CSV &mdash; primary only</div>
-              <div class="acc-card-desc">Category A records only.</div>
-              <button class="btn btn-primary" onclick="SWDExportFn.csv('A')">Download A-only CSV</button>
-            </div>
-            <div class="acc-card">
-              <div class="acc-card-icon">&#11015;</div>
-              <div class="acc-card-name">RIS / EndNote</div>
-              <div class="acc-card-desc">Import into EndNote, Zotero, Mendeley, or RefWorks. Includes screening decisions and scores.</div>
-              <button class="btn btn-ghost" onclick="SWDExportFn.ris()">Download .ris</button>
-            </div>
-            <div class="acc-card">
-              <div class="acc-card-icon">@</div>
-              <div class="acc-card-name">BibTeX</div>
-              <div class="acc-card-desc">All citations for LaTeX / Zotero.</div>
-              <button class="btn btn-ghost" onclick="SWDExportFn.bibtex()">Download .bib</button>
-            </div>
-            <div class="acc-card">
-              <div class="acc-card-icon">{}</div>
-              <div class="acc-card-name">JSON</div>
-              <div class="acc-card-desc">Full records with all fields, screening decisions, abstract, and scores.</div>
-              <button class="btn btn-ghost" onclick="SWDExportFn.json()">Download JSON</button>
-            </div>
-            <div class="acc-card">
-              <div class="acc-card-icon">&#11015;</div>
-              <div class="acc-card-name">EndNoteXML</div>
-              <div class="acc-card-desc">Native EndNote .xml format. Import directly into EndNote X9+.</div>
-              <button class="btn btn-ghost" onclick="SWDExportFn.endnotexml()">Download .xml</button>
-            </div>
-          </div>
-        </div>
+        <div class="accordion-header"><div class="accordion-header-left"><span class="accordion-icon">&#128196;</span><span class="accordion-title">Citation formats</span><span class="accordion-badge">6 exports</span></div><span class="accordion-chevron">&#9660;</span></div>
+        <div class="accordion-body"><div class="accordion-grid">
+          <div class="acc-card acc-card-featured"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">CSV &mdash; all records</div><div class="acc-card-desc">All categories, respects export options above.</div><button class="btn btn-primary" onclick="SWDExportFn.csv('all')">Download CSV</button></div>
+          <div class="acc-card acc-card-featured"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">CSV &mdash; primary only</div><div class="acc-card-desc">Category A records only.</div><button class="btn btn-primary" onclick="SWDExportFn.csv('A')">Download A-only CSV</button></div>
+          <div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">RIS / EndNote</div><div class="acc-card-desc">Import into EndNote, Zotero, Mendeley, or RefWorks.</div><button class="btn btn-ghost" onclick="SWDExportFn.ris()">Download .ris</button></div>
+          <div class="acc-card"><div class="acc-card-icon">@</div><div class="acc-card-name">BibTeX</div><div class="acc-card-desc">All citations for LaTeX / Zotero.</div><button class="btn btn-ghost" onclick="SWDExportFn.bibtex()">Download .bib</button></div>
+          <div class="acc-card"><div class="acc-card-icon">{}</div><div class="acc-card-name">JSON</div><div class="acc-card-desc">Full records with all fields, abstract, and scores.</div><button class="btn btn-ghost" onclick="SWDExportFn.json()">Download JSON</button></div>
+          <div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">EndNoteXML</div><div class="acc-card-desc">Native EndNote .xml format.</div><button class="btn btn-ghost" onclick="SWDExportFn.endnotexml()">Download .xml</button></div>
+        </div></div>
       </div>
-
-      <!-- Group 2: Systematic review -->
       <div class="accordion-group" id="acc-sysrev">
-        <div class="accordion-header">
-          <div class="accordion-header-left">
-            <span class="accordion-icon">&#128300;</span>
-            <span class="accordion-title">Systematic review</span>
-            <span class="accordion-badge">4 exports</span>
-          </div>
-          <span class="accordion-chevron">&#9660;</span>
-        </div>
-        <div class="accordion-body">
-          <div class="accordion-grid">
-            <div class="acc-card acc-card-featured">
-              <div class="acc-card-icon">&#11015;</div>
-              <div class="acc-card-name">PRISMA search log</div>
-              <div class="acc-card-desc">Query-by-query log with dedup and screening counts. Ready to paste into your methods section.</div>
-              <button class="btn btn-primary" onclick="SWDExportFn.searchLog()">Download search log (.txt)</button>
-            </div>
-            <div class="acc-card">
-              <div class="acc-card-icon">&#11015;</div>
-              <div class="acc-card-name">Included records CSV</div>
-              <div class="acc-card-desc">Only records you marked &ldquo;include&rdquo; in screening.</div>
-              <button class="btn btn-ghost" onclick="SWDExportFn.screened('include')">Download included CSV</button>
-            </div>
-            <div class="acc-card">
-              <div class="acc-card-icon">&#11015;</div>
-              <div class="acc-card-name">Excluded records CSV</div>
-              <div class="acc-card-desc">Records marked &ldquo;exclude&rdquo; with your reasons.</div>
-              <button class="btn btn-ghost" onclick="SWDExportFn.screened('exclude')">Download excluded CSV</button>
-            </div>
-            <div class="acc-card">
-              <div class="acc-card-icon">&#11015;</div>
-              <div class="acc-card-name">Markdown summary</div>
-              <div class="acc-card-desc">Session overview with category breakdown, top countries, and included records table. Ready for Obsidian, Notion, or GitHub.</div>
-              <button class="btn btn-ghost" onclick="SWDExportFn.markdown()">Download .md</button>
-            </div>
-          </div>
-        </div>
+        <div class="accordion-header"><div class="accordion-header-left"><span class="accordion-icon">&#128300;</span><span class="accordion-title">Systematic review</span><span class="accordion-badge">4 exports</span></div><span class="accordion-chevron">&#9660;</span></div>
+        <div class="accordion-body"><div class="accordion-grid">
+          <div class="acc-card acc-card-featured"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">PRISMA search log</div><div class="acc-card-desc">Query-by-query log, ready for methods section.</div><button class="btn btn-primary" onclick="SWDExportFn.searchLog()">Download search log (.txt)</button></div>
+          <div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">Included records CSV</div><div class="acc-card-desc">Only records marked &ldquo;include&rdquo;.</div><button class="btn btn-ghost" onclick="SWDExportFn.screened('include')">Download included CSV</button></div>
+          <div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">Excluded records CSV</div><div class="acc-card-desc">Records marked &ldquo;exclude&rdquo; with reasons.</div><button class="btn btn-ghost" onclick="SWDExportFn.screened('exclude')">Download excluded CSV</button></div>
+          <div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">Markdown summary</div><div class="acc-card-desc">Session overview for Obsidian, Notion, or GitHub.</div><button class="btn btn-ghost" onclick="SWDExportFn.markdown()">Download .md</button></div>
+        </div></div>
       </div>
-
-      <!-- Group 3: Extracted content -->
       <div class="accordion-group" id="acc-extracted">
-        <div class="accordion-header">
-          <div class="accordion-header-left">
-            <span class="accordion-icon">&#128193;</span>
-            <span class="accordion-title">Extracted content</span>
-            <span class="accordion-badge">GeoJSON + slots</span>
-          </div>
-          <span class="accordion-chevron">&#9660;</span>
-        </div>
+        <div class="accordion-header"><div class="accordion-header-left"><span class="accordion-icon">&#128193;</span><span class="accordion-title">Extracted content</span><span class="accordion-badge">GeoJSON + slots</span></div><span class="accordion-chevron">&#9660;</span></div>
         <div class="accordion-body">
-          <div class="accordion-grid" style="margin-bottom:1rem">
-            <div class="acc-card">
-              <div class="acc-card-icon">&#11015;</div>
-              <div class="acc-card-name">GeoJSON</div>
-              <div class="acc-card-desc">Records with coordinates for QGIS or Leaflet.</div>
-              <button class="btn btn-ghost" onclick="SWDExportFn.geojson()">Download GeoJSON</button>
-            </div>
-          </div>
+          <div class="accordion-grid" style="margin-bottom:1rem"><div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">GeoJSON</div><div class="acc-card-desc">Records with coordinates for QGIS or Leaflet.</div><button class="btn btn-ghost" onclick="SWDExportFn.geojson()">Download GeoJSON</button></div></div>
           <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);margin-bottom:.6rem">Extraction slot exports</div>
-          <div id="acc-slots-export">
-            <p style="font-size:12.5px;color:var(--ink-3)">No extraction slots defined. Add slots in the Schema tab, then run a search.</p>
-          </div>
+          <div id="acc-slots-export"><p style="font-size:12.5px;color:var(--ink-3)">No extraction slots defined. Add slots in the Schema tab, then run a search.</p></div>
         </div>
       </div>
-
-      <!-- Group 4: Configuration & raw -->
       <div class="accordion-group" id="acc-config-exports">
-        <div class="accordion-header">
-          <div class="accordion-header-left">
-            <span class="accordion-icon">&#9881;</span>
-            <span class="accordion-title">Configuration &amp; raw</span>
-            <span class="accordion-badge">4 exports</span>
-          </div>
-          <span class="accordion-chevron">&#9660;</span>
-        </div>
-        <div class="accordion-body">
-          <div class="accordion-grid">
-            <div class="acc-card">
-              <div class="acc-card-icon">&#11015;</div>
-              <div class="acc-card-name">Schema (.json)</div>
-              <div class="acc-card-desc">Export your schema config to reload or share.</div>
-              <button class="btn btn-ghost" onclick="SWDExportFn.schema()">Download schema</button>
-            </div>
-            <div class="acc-card">
-              <div class="acc-card-icon">&#11015;</div>
-              <div class="acc-card-name">Known gaps (.txt)</div>
-              <div class="acc-card-desc">Hard-to-access sources for your methods section.</div>
-              <button class="btn btn-ghost" onclick="SWDExportFn.missing()">Download TXT</button>
-            </div>
-            <div class="acc-card">
-              <div class="acc-card-icon">&#11015;</div>
-              <div class="acc-card-name">Custom delimiter</div>
-              <div class="acc-card-desc">Tab, semicolon, or pipe-delimited with your choice of quoting and header.</div>
-              <div class="acc-delim-controls">
-                <select id="custom-delim"><option value="tab">Tab (.tsv)</option><option value="semicolon">Semicolon</option><option value="pipe">Pipe |</option></select>
-                <select id="custom-quote"><option value="yes">Quote fields</option><option value="none">No quoting</option></select>
-                <select id="custom-header"><option value="yes">With header</option><option value="no">No header</option></select>
-              </div>
-              <button class="btn btn-ghost" onclick="SWDExportFn.delimited()">Download</button>
-            </div>
-            <div class="acc-card">
-              <div class="acc-card-icon">&#11015;</div>
-              <div class="acc-card-name">Paywalled DOIs (.txt)</div>
-              <div class="acc-card-desc">Full paywalled list with Unpaywall and ILL links.</div>
-              <button class="btn btn-ghost" onclick="SWDExportFn.paywallTxt()">Download TXT</button>
-            </div>
-          </div>
-        </div>
+        <div class="accordion-header"><div class="accordion-header-left"><span class="accordion-icon">&#9881;</span><span class="accordion-title">Configuration &amp; raw</span><span class="accordion-badge">4 exports</span></div><span class="accordion-chevron">&#9660;</span></div>
+        <div class="accordion-body"><div class="accordion-grid">
+          <div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">Schema (.json)</div><div class="acc-card-desc">Export your schema to reload or share.</div><button class="btn btn-ghost" onclick="SWDExportFn.schema()">Download schema</button></div>
+          <div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">Known gaps (.txt)</div><div class="acc-card-desc">Hard-to-access sources for your methods.</div><button class="btn btn-ghost" onclick="SWDExportFn.missing()">Download TXT</button></div>
+          <div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">Custom delimiter</div><div class="acc-card-desc">Tab, semicolon, or pipe-delimited.</div><div class="acc-delim-controls"><select id="custom-delim"><option value="tab">Tab (.tsv)</option><option value="semicolon">Semicolon</option><option value="pipe">Pipe |</option></select><select id="custom-quote"><option value="yes">Quote fields</option><option value="none">No quoting</option></select><select id="custom-header"><option value="yes">With header</option><option value="no">No header</option></select></div><button class="btn btn-ghost" onclick="SWDExportFn.delimited()">Download</button></div>
+          <div class="acc-card"><div class="acc-card-icon">&#11015;</div><div class="acc-card-name">Paywalled DOIs (.txt)</div><div class="acc-card-desc">Full paywalled list with Unpaywall links.</div><button class="btn btn-ghost" onclick="SWDExportFn.paywallTxt()">Download TXT</button></div>
+        </div></div>
       </div>
-
-      <!-- Group 5: Requests & roadmap -->
       <div class="accordion-group" id="acc-roadmap">
-        <div class="accordion-header">
-          <div class="accordion-header-left">
-            <span class="accordion-icon">&#128506;</span>
-            <span class="accordion-title">Requests &amp; roadmap</span>
-            <span class="accordion-badge">2 items</span>
-          </div>
-          <span class="accordion-chevron">&#9660;</span>
-        </div>
-        <div class="accordion-body">
-          <div class="accordion-grid">
-            <div class="acc-card">
-              <div class="acc-card-icon">&#9993;</div>
-              <div class="acc-card-name">Request a format</div>
-              <div class="acc-card-desc">Need a format not listed? Fill in the details below and send an email request.</div>
-              <div style="margin-top:.5rem;display:grid;gap:.5rem">
-                <input type="text" id="req-name" placeholder="Your name" style="font-size:12px;padding:5px 8px" />
-                <input type="text" id="req-format" placeholder="Format / target software (e.g. NBIB, ArcGIS CSV)" style="font-size:12px;padding:5px 8px" />
-                <textarea id="req-fields" placeholder="Fields / columns needed, in order" rows="2" style="font-size:12px;padding:5px 8px;resize:vertical;font-family:var(--mono)"></textarea>
-                <textarea id="req-notes" placeholder="Other requirements (delimiter, encoding, etc.)" rows="2" style="font-size:12px;padding:5px 8px;resize:vertical;font-family:var(--mono)"></textarea>
-              </div>
-              <button class="btn btn-ghost" style="margin-top:.5rem" onclick="openExportRequest()">Open email request &rarr;</button>
-            </div>
-            <div class="acc-card acc-card-coming">
-              <div class="acc-card-icon">&#9203;</div>
-              <div class="acc-card-name">PDF matching <span style="font-size:10px;background:var(--paper);padding:1px 5px;border-radius:4px;border:1px solid var(--border);margin-left:4px">coming soon</span></div>
-              <div class="acc-card-desc">Match your local PDF folder to records by DOI in the filename. Session-only, no upload needed. Planned for a future release.</div>
-              <button class="btn btn-ghost" disabled style="opacity:.5;cursor:not-allowed">Not yet available</button>
-            </div>
-          </div>
-        </div>
+        <div class="accordion-header"><div class="accordion-header-left"><span class="accordion-icon">&#128506;</span><span class="accordion-title">Requests &amp; roadmap</span><span class="accordion-badge">2 items</span></div><span class="accordion-chevron">&#9660;</span></div>
+        <div class="accordion-body"><div class="accordion-grid">
+          <div class="acc-card"><div class="acc-card-icon">&#9993;</div><div class="acc-card-name">Request a format</div><div class="acc-card-desc">Need a format not listed? Send an email request.</div><div style="margin-top:.5rem;display:grid;gap:.5rem"><input type="text" id="req-name" placeholder="Your name" style="font-size:12px;padding:5px 8px" /><input type="text" id="req-format" placeholder="Format / target software" style="font-size:12px;padding:5px 8px" /><textarea id="req-fields" placeholder="Fields / columns needed" rows="2" style="font-size:12px;padding:5px 8px;resize:vertical;font-family:var(--mono)"></textarea><textarea id="req-notes" placeholder="Other requirements" rows="2" style="font-size:12px;padding:5px 8px;resize:vertical;font-family:var(--mono)"></textarea></div><button class="btn btn-ghost" style="margin-top:.5rem" onclick="openExportRequest()">Open email request &rarr;</button></div>
+          <div class="acc-card acc-card-coming"><div class="acc-card-icon">&#9203;</div><div class="acc-card-name">PDF matching <span style="font-size:10px;background:var(--paper);padding:1px 5px;border-radius:4px;border:1px solid var(--border);margin-left:4px">coming soon</span></div><div class="acc-card-desc">Match local PDFs to records by DOI. Planned for future release.</div><button class="btn btn-ghost" disabled style="opacity:.5;cursor:not-allowed">Not yet available</button></div>
+        </div></div>
       </div>
-
-    </div><!-- end accordion -->
-
+    </div>
     <div class="schema-section" style="margin-top:1.5rem">
       <h2>Active schema preview</h2>
       <table class="schema-table"><thead><tr><th>Field key</th><th>Type</th><th>Label &amp; description</th></tr></thead><tbody id="schema-tbody"></tbody></table>
@@ -639,7 +516,7 @@
           </dl>
         </div>
         <div class="about-section"><h2>Cite this tool</h2><div class="citation-box">Ebrahimi, M. (2026). SciWide Search [Software]. https://github.com/mehregan59/Sc_wide_Search</div><button class="btn btn-ghost" onclick="copyCitation(this)">Copy citation</button></div>
-        <div class="about-section"><h2>Creator</h2><p><strong>Mehregan Ebrahimi</strong><br>GitHub: <a href="https://github.com/mehregan59" target="_blank" rel="noopener">github.com/mehregan59</a><br>Email: <em>[mehregan.ebrahimi@gmail.com]</em></p></div>
+        <div class="about-section"><h2>Creator</h2><p><strong>Mehregan Ebrahimi</strong><br>GitHub: <a href="https://github.com/mehregan59" target="_blank" rel="noopener">github.com/mehregan59</a><br>Email: <em>mehregan.ebrahimi@gmail.com</em></p></div>
         <div class="about-section"><h2>License</h2><p>Released under the <strong>MIT License</strong>. Free to use, modify, and distribute. The author reserves the right to release future versions under a different license. See <a href="https://github.com/mehregan59/Sc_wide_Search/blob/main/LICENSE" target="_blank" rel="noopener">LICENSE</a>.</p></div>
         <div class="about-section"><h2>APIs used</h2><p>All public and free: OpenAlex, Europe PMC, PubMed (via Europe PMC), Crossref, arXiv, bioRxiv / medRxiv, GBIF, iNaturalist, Zenodo. Institutional databases listed as stubs &mdash; connectors added as CORS feasibility is confirmed.</p></div>
       </div>
