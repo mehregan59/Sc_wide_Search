@@ -1206,4 +1206,414 @@ const _selResetObserver = document.getElementById('btn-run');
 // Initial render of selection bar (in case of preset-restored state)
 renderSelectionBar();
 
+// ─── REPLACE the last line "}); // end DOMContentLoaded" with everything below ───
+
+// ═══════════════════════════════════════════════════════════════
+// PHASE 7 — DISCIPLINE DATABASE MAP
+// ═══════════════════════════════════════════════════════════════
+const DISCIPLINE_DB_MAP = {
+  general: {
+    label: 'General / All disciplines',
+    defaultOn: ['semanticscholar','openalex','europepmc','crossref','zenodo','gbif','inat'],
+    available: [
+      {id:'semanticscholar', label:'Semantic Scholar', status:'live', note:'200M+ papers, all fields'},
+      {id:'openalex',        label:'OpenAlex',         status:'live', note:'250M+ works, CC0'},
+      {id:'europepmc',       label:'Europe PMC',       status:'live', note:'Life sciences & general'},
+      {id:'crossref',        label:'Crossref',         status:'live', note:'180M+ DOI records'},
+      {id:'zenodo',          label:'Zenodo',           status:'live', note:'Open access, all fields'},
+      {id:'base',            label:'BASE',             status:'stub', note:'240M+ open access docs'},
+      {id:'unpaywall',       label:'Unpaywall',        status:'stub', note:'Open access resolver'},
+      {id:'researchgate',    label:'ResearchGate',     status:'noapl', note:'No public API — manual search only'},
+    ]
+  },
+  biology: {
+    label: 'Biology & Life Sciences',
+    defaultOn: ['europepmc','pubmed','biorxiv','openalex','gbif','inat','ncbi'],
+    available: [
+      {id:'europepmc',  label:'Europe PMC',        status:'live', note:'Primary biology/life sci DB'},
+      {id:'pubmed',     label:'PubMed (via EPMC)', status:'live', note:'36M+ biomedical citations'},
+      {id:'biorxiv',    label:'bioRxiv / medRxiv', status:'live', note:'Life science preprints'},
+      {id:'openalex',   label:'OpenAlex',          status:'live', note:'Broad coverage incl. biology'},
+      {id:'gbif',       label:'GBIF',              status:'live', note:'Species occurrence data'},
+      {id:'inat',       label:'iNaturalist',       status:'live', note:'Biodiversity observations'},
+      {id:'ncbi',       label:'NCBI / GenBank',    status:'stub', note:'Genomics, sequences, taxonomy'},
+      {id:'bold',       label:'BOLD Systems',      status:'stub', note:'Barcode of Life data'},
+      {id:'plos',       label:'PLOS ONE',          status:'stub', note:'Open-access biology journals'},
+      {id:'zenodo',     label:'Zenodo',            status:'live', note:'Research data & preprints'},
+    ]
+  },
+  ecology: {
+    label: 'Ecology & Environmental Science',
+    defaultOn: ['openalex','europepmc','gbif','inat','zenodo'],
+    available: [
+      {id:'openalex',     label:'OpenAlex',          status:'live', note:'Strong ecology coverage'},
+      {id:'europepmc',    label:'Europe PMC',        status:'live', note:'Environmental journals'},
+      {id:'gbif',         label:'GBIF',              status:'live', note:'Species distributions'},
+      {id:'inat',         label:'iNaturalist',       status:'live', note:'Field observations'},
+      {id:'zenodo',       label:'Zenodo',            status:'live', note:'Environmental datasets'},
+      {id:'eartharxiv',   label:'EarthArXiv',        status:'stub', note:'Earth & environ. science preprints (via Zenodo)'},
+      {id:'crossref',     label:'Crossref',          status:'live', note:'Journal metadata'},
+      {id:'eppo',         label:'EPPO Global DB',    status:'stub', note:'Pest & plant health data'},
+      {id:'bold',         label:'BOLD Systems',      status:'stub', note:'Barcode ecology studies'},
+    ]
+  },
+  medicine: {
+    label: 'Medicine & Health Sciences',
+    defaultOn: ['pubmed','europepmc','biorxiv','openalex','crossref'],
+    available: [
+      {id:'pubmed',     label:'PubMed (via EPMC)', status:'live', note:'Gold standard for medicine'},
+      {id:'europepmc',  label:'Europe PMC',        status:'live', note:'Open access medical papers'},
+      {id:'biorxiv',    label:'medRxiv',           status:'live', note:'Medical preprints'},
+      {id:'openalex',   label:'OpenAlex',          status:'live', note:'Broad medical coverage'},
+      {id:'crossref',   label:'Crossref',          status:'live', note:'Clinical trial registrations'},
+      {id:'zenodo',     label:'Zenodo',            status:'live', note:'Health datasets & grey lit.'},
+      {id:'plos',       label:'PLOS Medicine',     status:'stub', note:'Open-access medical journals'},
+      {id:'ncbi',       label:'NCBI / PubMed Central', status:'stub', note:'Full-text medical articles'},
+    ]
+  },
+  physics: {
+    label: 'Physics & Astronomy',
+    defaultOn: ['arxiv','openalex','crossref','zenodo'],
+    available: [
+      {id:'arxiv',      label:'arXiv',             status:'live', note:'Primary physics preprint server'},
+      {id:'openalex',   label:'OpenAlex',          status:'live', note:'Broad physics literature'},
+      {id:'crossref',   label:'Crossref',          status:'live', note:'Published journal articles'},
+      {id:'zenodo',     label:'Zenodo',            status:'live', note:'CERN-hosted open data'},
+      {id:'nasaads',    label:'NASA ADS',           status:'stub', note:'Astronomy & astrophysics — requires free API key'},
+      {id:'inspire',    label:'INSPIRE-HEP',       status:'stub', note:'High-energy physics literature'},
+    ]
+  },
+  mathematics: {
+    label: 'Mathematics & Statistics',
+    defaultOn: ['arxiv','openalex','crossref','zenodo'],
+    available: [
+      {id:'arxiv',      label:'arXiv (math)',      status:'live', note:'Primary math preprint server'},
+      {id:'openalex',   label:'OpenAlex',          status:'live', note:'Covers pure & applied math'},
+      {id:'crossref',   label:'Crossref',          status:'live', note:'Mathematical journals'},
+      {id:'zenodo',     label:'Zenodo',            status:'live', note:'Math software & datasets'},
+      {id:'zbmath',     label:'zbMATH Open',       status:'stub', note:'Mathematics literature database'},
+      {id:'semanticscholar', label:'Semantic Scholar', status:'live', note:'Good math & CS coverage'},
+    ]
+  },
+  cs: {
+    label: 'Computer Science & Engineering',
+    defaultOn: ['arxiv','semanticscholar','openalex','crossref','zenodo'],
+    available: [
+      {id:'arxiv',         label:'arXiv (cs)',         status:'live', note:'Primary CS preprint server'},
+      {id:'semanticscholar', label:'Semantic Scholar', status:'live', note:'Strong AI/ML/CS coverage'},
+      {id:'openalex',      label:'OpenAlex',           status:'live', note:'Broad CS literature'},
+      {id:'crossref',      label:'Crossref',           status:'live', note:'IEEE, ACM proceedings'},
+      {id:'zenodo',        label:'Zenodo',             status:'live', note:'Code, datasets, preprints'},
+      {id:'biorxiv',       label:'bioRxiv (bioinf.)',  status:'live', note:'Bioinformatics preprints'},
+      {id:'engrxiv',       label:'engrXiv',            status:'stub', note:'Engineering preprints'},
+    ]
+  },
+  chemistry: {
+    label: 'Chemistry & Materials Science',
+    defaultOn: ['openalex','crossref','zenodo','arxiv'],
+    available: [
+      {id:'openalex',   label:'OpenAlex',          status:'live', note:'Chemistry journal coverage'},
+      {id:'crossref',   label:'Crossref',          status:'live', note:'ACS, RSC, Wiley journals'},
+      {id:'zenodo',     label:'Zenodo',            status:'live', note:'Chemistry datasets'},
+      {id:'arxiv',      label:'arXiv (chem-ph)',   status:'live', note:'Chemical physics preprints'},
+      {id:'chemrxiv',   label:'ChemRxiv',          status:'stub', note:'Chemistry preprints — via Crossref filter'},
+      {id:'pubchem',    label:'PubChem',           status:'stub', note:'Chemical compound database (NCBI)'},
+    ]
+  },
+  social: {
+    label: 'Social Sciences & Humanities',
+    defaultOn: ['openalex','crossref','zenodo','semanticscholar'],
+    available: [
+      {id:'openalex',    label:'OpenAlex',          status:'live', note:'Growing social sciences coverage'},
+      {id:'crossref',    label:'Crossref',          status:'live', note:'Social science journals'},
+      {id:'zenodo',      label:'Zenodo',            status:'live', note:'Social data & grey lit.'},
+      {id:'semanticscholar', label:'Semantic Scholar', status:'live', note:'Social science papers'},
+      {id:'ssrn',        label:'SSRN',              status:'stub', note:'Economics, law, social working papers (via Crossref)'},
+      {id:'socarxiv',    label:'SocArXiv',          status:'stub', note:'Social sciences preprints'},
+      {id:'psyarxiv',    label:'PsyArXiv',          status:'stub', note:'Psychology preprints (OSF API)'},
+    ]
+  },
+  economics: {
+    label: 'Economics & Business',
+    defaultOn: ['openalex','crossref','zenodo','arxiv'],
+    available: [
+      {id:'openalex',   label:'OpenAlex',           status:'live', note:'Economics journal coverage'},
+      {id:'crossref',   label:'Crossref',           status:'live', note:'Economics journals & books'},
+      {id:'zenodo',     label:'Zenodo',             status:'live', note:'Economic datasets'},
+      {id:'arxiv',      label:'arXiv (econ)',       status:'live', note:'Economics preprints since 2017'},
+      {id:'ssrn',       label:'SSRN',               status:'stub', note:'Working papers (via Crossref)'},
+      {id:'repec',      label:'EconPapers / RePEC', status:'stub', note:'Economics working papers (OAI-PMH, CORS issues)'},
+    ]
+  },
+  geosciences: {
+    label: 'Geosciences & Earth Sciences',
+    defaultOn: ['openalex','crossref','zenodo','gbif'],
+    available: [
+      {id:'openalex',    label:'OpenAlex',           status:'live', note:'Geoscience journal coverage'},
+      {id:'crossref',    label:'Crossref',           status:'live', note:'Earth science journals'},
+      {id:'zenodo',      label:'Zenodo',             status:'live', note:'Geo datasets & models'},
+      {id:'gbif',        label:'GBIF',               status:'live', note:'Species / geo occurrence'},
+      {id:'eartharxiv',  label:'EarthArXiv',         status:'stub', note:'Earth science preprints'},
+      {id:'nasaads',     label:'NASA ADS',           status:'stub', note:'Space & atmospheric science'},
+      {id:'pangaea',     label:'PANGAEA',            status:'stub', note:'Earth & environmental data — API available'},
+    ]
+  },
+};
+
+window.DISCIPLINE_DB_MAP = DISCIPLINE_DB_MAP;
+
+// All known DB IDs and labels (superset)
+const ALL_DB_LABELS_EXT = {
+  semanticscholar:'Semantic Scholar', openalex:'OpenAlex', europepmc:'Europe PMC',
+  pubmed:'PubMed (via Europe PMC)', arxiv:'arXiv', biorxiv:'bioRxiv / medRxiv',
+  zenodo:'Zenodo', crossref:'Crossref', unpaywall:'Unpaywall', base:'BASE',
+  gbif:'GBIF', inat:'iNaturalist', bold:'BOLD', ncbi:'NCBI',
+  eppo:'EPPO Global DB', cabi:'CABI', usda:'USDA/NAL', jki:'JKI Germany',
+  naro:'NARO Japan', caas:'CAAS China', rda:'RDA Korea',
+  plos:'PLOS', chemrxiv:'ChemRxiv', eartharxiv:'EarthArXiv', psyarxiv:'PsyArXiv',
+  socarxiv:'SocArXiv', ssrn:'SSRN', repec:'EconPapers/RePEC', engrxiv:'engrXiv',
+  nasaads:'NASA ADS', inspire:'INSPIRE-HEP', zbmath:'zbMATH Open',
+  pubchem:'PubChem', pangaea:'PANGAEA', researchgate:'ResearchGate',
+};
+Object.assign(DB_LABELS, ALL_DB_LABELS_EXT);
+
+function renderDisciplineSelector(){
+  const container = document.getElementById('discipline-db-panel');
+  if(!container) return;
+  const disc = document.getElementById('db-discipline-select')?.value || 'general';
+  const map = DISCIPLINE_DB_MAP[disc];
+  if(!map) return;
+
+  const rgNote = document.getElementById('db-resgate-note');
+  const hasRG = map.available.some(db => db.id === 'researchgate');
+  if(rgNote) rgNote.classList.toggle('visible', hasRG);
+
+  container.innerHTML = map.available.map(db => {
+    const isChecked = window._currentDisciplineChecked?.has(db.id) ?? map.defaultOn.includes(db.id);
+    const statusNote = db.status === 'stub' ? ' <span class="db-stub-note">(stub — connector planned)</span>' :
+                       db.status === 'noapl' ? ' <span class="db-stub-note">(no public API)</span>' : '';
+    const isDisabled = db.status === 'noapl';
+    return `<label class="chip ${isDisabled ? 'chip-disabled' : ''}" style="${isDisabled?'opacity:.4;cursor:not-allowed':''}">
+      <input type="checkbox" value="${db.id}" ${isChecked?'checked':''} ${isDisabled?'disabled':''} onchange="SWDDiscipline.onChipChange()" />
+      ${db.label}${statusNote}
+    </label>`;
+  }).join('');
+}
+
+window.SWDDiscipline = {
+  onDisciplineChange(){
+    const disc = document.getElementById('db-discipline-select')?.value || 'general';
+    const map = DISCIPLINE_DB_MAP[disc];
+    // Set checked state to discipline defaults
+    window._currentDisciplineChecked = new Set(map.defaultOn);
+    renderDisciplineSelector();
+    // Sync to the underlying hidden chips so getSettings() still works
+    SWDDiscipline.syncToSettings();
+  },
+  onChipChange(){
+    const chips = document.querySelectorAll('#discipline-db-panel input[type="checkbox"]');
+    window._currentDisciplineChecked = new Set([...chips].filter(c=>c.checked).map(c=>c.value));
+    SWDDiscipline.syncToSettings();
+  },
+  syncToSettings(){
+    // Update the underlying chip inputs (kept hidden) for backwards compatibility with getSettings()
+    const allChips = document.querySelectorAll('#chips-academic input, #chips-gov input, #chips-bio input');
+    allChips.forEach(c => {
+      c.checked = window._currentDisciplineChecked?.has(c.value) ?? c.checked;
+    });
+  },
+  requestNewDB(){
+    const body = `Hi Mehregan,\n\nI would like to request a new database connector for SciWide Search.\n\nDatabase name: [Your database name]\nURL / API docs: [API documentation URL]\nFree public API: [Yes / No]\nDiscipline(s): [Which fields it covers]\nWhy it would be useful: [Brief explanation]\n\nThank you!`;
+    window.open(`mailto:?subject=${encodeURIComponent('SciWide Search — Database connector request')}&body=${encodeURIComponent(body)}`);
+  },
+};
+
+// Wire discipline dropdown
+const discSelect = document.getElementById('db-discipline-select');
+if(discSelect) {
+  discSelect.addEventListener('change', () => window.SWDDiscipline.onDisciplineChange());
+  // Init
+  window._currentDisciplineChecked = new Set(DISCIPLINE_DB_MAP.general.defaultOn);
+  renderDisciplineSelector();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PHASE 7 — CUSTOM REQUIREMENTS ENGINE
+// ═══════════════════════════════════════════════════════════════
+window._SWDRequirements = [];
+let _reqId = 0;
+
+const REQ_TYPES = [
+  { value: 'abstract_contains',  label: 'Abstract contains phrase' },
+  { value: 'title_contains',     label: 'Title contains phrase' },
+  { value: 'any_field_contains', label: 'Any field contains phrase' },
+  { value: 'has_doi',            label: 'Has DOI' },
+  { value: 'has_coordinates',    label: 'Has coordinates' },
+  { value: 'has_country',        label: 'Has country extracted' },
+  { value: 'has_abstract',       label: 'Has abstract text' },
+  { value: 'year_from',          label: 'Year ≥ value' },
+  { value: 'year_to',            label: 'Year ≤ value' },
+  { value: 'source_type_is',     label: 'Source type equals' },
+  { value: 'language_is',        label: 'Language code equals' },
+  { value: 'category_is',        label: 'Category equals (A/B/C/D/E/F)' },
+  { value: 'custom_text',        label: 'Custom rule (text description)' },
+];
+
+const REQ_SUGGESTIONS = [
+  { type: 'has_country',        label: 'Must have country',    value: '' },
+  { type: 'has_doi',            label: 'Must have DOI',        value: '' },
+  { type: 'has_coordinates',    label: 'Must have coordinates',value: '' },
+  { type: 'has_abstract',       label: 'Must have abstract',   value: '' },
+  { type: 'year_from',          label: 'Year from 2000',       value: '2000' },
+  { type: 'abstract_contains',  label: 'Abstract: location',   value: 'location' },
+  { type: 'title_contains',     label: 'Title: keyword',       value: '' },
+  { type: 'source_type_is',     label: 'Journals only',        value: 'journal' },
+  { type: 'custom_text',        label: '+ Custom rule',        value: '' },
+];
+
+function testRequirement(r, req) {
+  if(!req.enabled) return true; // disabled reqs always pass
+  const ft = [r.full_citation||'', r._abstract||'', r.excerpt||'', r.notes||''].join(' ').toLowerCase();
+  const val = (req.value||'').trim().toLowerCase();
+  switch(req.type){
+    case 'abstract_contains':    return val ? (r._abstract||'').toLowerCase().includes(val) : true;
+    case 'title_contains':       return val ? (r.full_citation||'').toLowerCase().includes(val) : true;
+    case 'any_field_contains':   return val ? ft.includes(val) : true;
+    case 'has_doi':              return !!(r.doi && r.doi !== 'not reported' && r.doi !== '');
+    case 'has_coordinates':      return !!(r.coordinates && r.coordinates !== 'not reported');
+    case 'has_country':          return !!(r.country && r.country !== 'not reported');
+    case 'has_abstract':         return !!(r._abstract && r._abstract.trim().length > 10);
+    case 'year_from':            return val ? (!r.pub_year || r.pub_year >= parseInt(val)) : true;
+    case 'year_to':              return val ? (!r.pub_year || r.pub_year <= parseInt(val)) : true;
+    case 'source_type_is':       return val ? (r.source_type||'').toLowerCase() === val : true;
+    case 'language_is':          return val ? (r.language||'').toLowerCase().startsWith(val) : true;
+    case 'category_is':          return val ? (r.category||'').toUpperCase() === val.toUpperCase() : true;
+    case 'custom_text':          return true; // custom rules are descriptive only — always pass in code
+    default:                     return true;
+  }
+}
+
+function applyRequirements(records) {
+  const enabledReqs = window._SWDRequirements.filter(r => r.enabled && r.type !== 'custom_text');
+  if(!enabledReqs.length) return;
+  records.forEach(r => {
+    const failedReqs = enabledReqs.filter(req => !testRequirement(r, req));
+    r._req_fail = failedReqs.length > 0;
+    r._req_fail_labels = failedReqs.map(req => req.label || req.type).join('; ');
+  });
+}
+
+function renderRequirements() {
+  const list = document.getElementById('req-list');
+  if(!list) return;
+  const reqs = window._SWDRequirements;
+  if(!reqs.length){
+    list.innerHTML = '<p style="font-size:12.5px;color:var(--ink-3)">No requirements set. All records will pass. Add a requirement below or click a suggestion.</p>';
+    return;
+  }
+  list.innerHTML = reqs.map(req => {
+    const typeOpts = REQ_TYPES.map(t => `<option value="${t.value}" ${req.type===t.value?'selected':''}>${t.label}</option>`).join('');
+    const needsValue = !['has_doi','has_coordinates','has_country','has_abstract'].includes(req.type);
+    return `<div class="req-row ${req.enabled?'req-enabled':'req-disabled'}" id="req-row-${req.id}">
+      <input type="checkbox" class="req-enable-toggle" ${req.enabled?'checked':''} title="Enable/disable" onchange="SWDReq.toggle(${req.id},this.checked)" />
+      <input type="text" class="req-label" value="${esc(req.label)}" placeholder="Requirement label" onchange="SWDReq.rename(${req.id},this.value)" />
+      <select class="req-type-select" onchange="SWDReq.setType(${req.id},this.value)">${typeOpts}</select>
+      ${needsValue ? `<input type="text" class="req-value" value="${esc(req.value||'')}" placeholder="value" onchange="SWDReq.setValue(${req.id},this.value)" />` : ''}
+      <button class="req-remove" onclick="SWDReq.remove(${req.id})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+window.SWDReq = {
+  add(type, label, value){
+    const t = type || 'abstract_contains';
+    const tDef = REQ_TYPES.find(x=>x.value===t);
+    window._SWDRequirements.push({ id:++_reqId, type:t, label:label||(tDef?.label||'New requirement'), value:value||'', enabled:true });
+    renderRequirements();
+  },
+  remove(id){ window._SWDRequirements = window._SWDRequirements.filter(r=>r.id!==id); renderRequirements(); },
+  toggle(id, val){ const r=window._SWDRequirements.find(r=>r.id===id); if(r){r.enabled=val; renderRequirements();} },
+  rename(id, label){ const r=window._SWDRequirements.find(r=>r.id===id); if(r) r.label=label; },
+  setType(id, type){ const r=window._SWDRequirements.find(r=>r.id===id); if(r){r.type=type; renderRequirements();} },
+  setValue(id, val){ const r=window._SWDRequirements.find(r=>r.id===id); if(r) r.value=val; },
+  serialize(){ return window._SWDRequirements.map(r=>({type:r.type,label:r.label,value:r.value,enabled:r.enabled})); },
+  restore(arr){ if(!Array.isArray(arr)) return; window._SWDRequirements=arr.map(r=>({id:++_reqId,type:r.type||'custom_text',label:r.label||'',value:r.value||'',enabled:r.enabled!==false})); renderRequirements(); },
+};
+
+document.getElementById('btn-add-req')?.addEventListener('click', () => window.SWDReq.add());
+document.querySelectorAll('.req-suggestion-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const type = chip.dataset.type;
+    const label = chip.dataset.label;
+    const value = chip.dataset.value || '';
+    window.SWDReq.add(type, label, value);
+  });
+});
+
+renderRequirements();
+
+// Hook into search completion: apply requirements to records
+const _origEndObs2 = document.getElementById('btn-run');
+if(_origEndObs2){
+  new MutationObserver(()=>{
+    if(!_origEndObs2.disabled && (window._SWDRecords||[]).length){
+      applyRequirements(window._SWDRecords);
+    }
+  }).observe(_origEndObs2,{attributes:true,attributeFilter:['disabled']});
+}
+
+// Patch preset serialization to include requirements + discipline
+const _origSerializePreset = serializePreset;
+serializePreset = function(name){
+  const base = _origSerializePreset(name);
+  base.requirements = window.SWDReq.serialize();
+  base.discipline = document.getElementById('db-discipline-select')?.value || 'general';
+  return base;
+};
+const _origApplyPreset = applyPreset;
+applyPreset = function(data){
+  _origApplyPreset(data);
+  if(data.requirements) window.SWDReq.restore(data.requirements);
+  if(data.discipline){
+    const sel = document.getElementById('db-discipline-select');
+    if(sel){ sel.value = data.discipline; window.SWDDiscipline.onDisciplineChange(); }
+  }
+};
+
+// Patch renderTable to show req_fail column and filter option
+// Add req_fail filter to the search-filter-row dropdown
+const reqFilterSel = document.getElementById('res-req-filter');
+if(reqFilterSel){
+  reqFilterSel.addEventListener('change', () => renderTable && renderTable());
+}
+
+// Extend existing renderTable with req-fail row class and badge
+// We patch at the end by overriding the tbody injection
+const _patchForReqFail = function(){
+  const tbody = document.getElementById('results-tbody');
+  if(!tbody) return;
+  const reqFilter = document.getElementById('res-req-filter')?.value || '';
+  if(!reqFilter) return; // no filter active — no change needed
+  const rows = [...tbody.querySelectorAll('tr:not(.empty-row)')];
+  rows.forEach(row => {
+    const key = row.querySelector('input[type="checkbox"]')?.getAttribute('onchange')?.match(/'([^']+)'/)?.[1];
+    if(!key) return;
+    const r = (window._SWDRecords||[]).find(rec => screeningKey(rec) === key);
+    if(!r) return;
+    if(reqFilter === 'fail' && !r._req_fail) row.style.display = 'none';
+    if(reqFilter === 'pass' && r._req_fail) row.style.display = 'none';
+  });
+};
+
+// Re-wire renderTable to apply req filter after render
+const _origRTForReq = window.renderTable || renderTable;
+if(typeof renderTable === 'function'){
+  const _patchedRT = function(){
+    _origRTForReq();
+    setTimeout(_patchForReqFail, 0);
+  };
+  // assign to global renderTable if accessible
+  try { renderTable = _patchedRT; } catch(e){}
+}
+
 }); // end DOMContentLoaded
