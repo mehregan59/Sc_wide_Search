@@ -2,15 +2,15 @@
 // APP.JS — entry point (ES module)
 // Imports all modules, wires events, runs the search loop
 // ═══════════════════════════════════════════════════════════════
-import { state, lines, checked, setChecked, esc, DB_LABELS, STUB_DBS, ONCE_DBS, logSearch, clearSearchLog, screeningKey, getScreening, setScreening, clearScreening } from './modules/state.js';
+import { state, lines, esc, DB_LABELS, STUB_DBS, ONCE_DBS, logSearch, clearSearchLog, screeningKey, getScreening, setScreening, clearScreening } from './modules/state.js';
 import { LIVE_SCHEMA, customFields, getActiveSchema, renderSchemaEditor, renderSchemaPreview, SWDSchema } from './modules/schema.js';
 import { engineQuery, resetEngineCache, sleep } from './modules/engines.js';
-import { processHit, isDuplicate, resetSeen, applyRequirements as _applyReq } from './modules/extractor.js';
-import { SWDExportFn, exportCSV, exportJSON } from './modules/export.js';
+import { processHit, isDuplicate, resetSeen } from './modules/extractor.js';
+import { SWDExportFn } from './modules/export.js';
 import { serializePreset, applyPreset, savePreset, loadPresetFile, handlePresetFile, loadPresetFromUrl, loadBundledPreset, connectPresetDeps } from './modules/presets.js';
 import { SWDSlots, slots, renderSlots, applySlots } from './modules/slots.js';
 import { scoreSchemaFit, scoreTermRelevance, getExportOptions, updateSizeWarning, SWDScores } from './modules/scores.js';
-import { requirements, SWDReq, renderRequirements, applyRequirements } from './modules/requirements.js';
+import { SWDReq, renderRequirements, applyRequirements } from './modules/requirements.js';
 import { DISCIPLINE_DB_MAP, SWDDiscipline, renderDisciplineSelector, SWDScope, renderScopeChips, SCOPE_PRESETS } from './modules/databases.js';
 import { SWDSelection, renderSelectionBar, renderPaginationControls, withScopeCheck, initScopeModal, getSelectedRecords } from './modules/selection.js';
 import { switchTab, renderTable, renderPaywallPanel, renderScreeningCounts, renderMissingSources, initAccordions, logMsg, setProgress, setStatus, updateStats } from './modules/ui.js';
