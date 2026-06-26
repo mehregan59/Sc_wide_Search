@@ -83,6 +83,10 @@ export async function queryBiorxiv(term, s, signal) {
   }));
 }
 
+// arXiv note: export.arxiv.org blocks CORS from GitHub Pages (no Access-Control-Allow-Origin header).
+// The fetch will fail with a TypeError — we catch it and return null so the search continues.
+// arXiv preprints are covered via Europe PMC (SRC:PPR) and OpenAlex which both index arXiv.
+// When deployed on a real domain with a server-side proxy, direct arXiv queries will work.
 export async function queryArxiv(term, s, signal) {
   try {
     await sleep(DELAY);
@@ -101,7 +105,11 @@ export async function queryArxiv(term, s, signal) {
         language: 'en', source_type: 'grey', pdf_available: 'yes', source_db: 'arXiv',
       };
     }).filter(r => (!s.yearFrom || !r.year || r.year >= s.yearFrom) && (!s.yearTo || !r.year || r.year <= s.yearTo));
-  } catch (e) { if (e.name === 'AbortError') throw e; return null; }
+  } catch (e) {
+    if (e.name === 'AbortError') throw e;
+    // CORS block or network error — return null so search continues; arXiv covered via EPMC/OpenAlex
+    return null;
+  }
 }
 
 export async function queryCrossref(term, s, signal) {
