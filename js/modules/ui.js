@@ -1,12 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
 // UI.JS — renderTable, renderPaywallPanel, screening UI, tabs
 // ═══════════════════════════════════════════════════════════════
-import { esc, state, screeningKey, getScreening, VERIF_CLASS, SCREEN_CLASS, DB_LABELS } from './state.js';
+import { esc, state, screeningKey, VERIF_CLASS, SCREEN_CLASS } from './state.js';
 import { getActiveSchema } from './schema.js';
 import { slots } from './slots.js';
 import { scoreSchemaFit, scoreTermRelevance, getExportOptions } from './scores.js';
 import { renderPaginationControls, SWDSelection, renderSelectionBar } from './selection.js';
-import { requirements } from './requirements.js';
 
 let _lastOpenAccordion = null;
 
@@ -59,18 +58,13 @@ export function renderTable() {
 
   state.filteredView = data;
 
+  // Screen column FIRST, then data columns — no selection checkbox column
   const thead = document.getElementById('results-thead');
-  const allSel = data.length > 0 && data.every(r => state.selection.has(screeningKey(r)));
-  if (thead) thead.innerHTML = '<tr><th class="row-select-cell"><input type="checkbox" class="select-all-checkbox" id="select-all-cb" ' + (allSel ? 'checked' : '') + ' /></th>' +
-    allCols.map(s => `<th>${esc(s.label || s.field)}</th>`).join('') + '<th>Screen</th></tr>';
-  const selectAllCb = document.getElementById('select-all-cb');
-  if (selectAllCb) selectAllCb.addEventListener('change', e => {
-    if (e.target.checked) SWDSelection.selectAllFiltered(data);
-    else SWDSelection.deselectAllFiltered(data);
-  });
+  if (thead) thead.innerHTML = '<tr><th class="screen-cell" style="min-width:110px">Screen</th>' +
+    allCols.map(s => `<th>${esc(s.label || s.field)}</th>`).join('') + '</tr>';
 
   const tbody = document.getElementById('results-tbody');
-  const totalCols = allCols.length + 2;
+  const totalCols = allCols.length + 1;
   if (!data.length) {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="${totalCols}">${state.records.length === 0 ? 'Run a search to see results.' : 'No records match the filter.'}</td></tr>`;
     document.getElementById('table-footer').textContent = '';
@@ -83,41 +77,44 @@ export function renderTable() {
   const startIdx = (state.paginationPage - 1) * pageSize;
   const pageData = data.slice(startIdx, startIdx + pageSize);
 
-  // Use array index as the onclick identifier — avoids all key-encoding issues
-  tbody.innerHTML = pageData.map((r, pageIdx) => {
+  tbody.innerHTML = pageData.map(r => {
     const globalIdx = state.records.indexOf(r);
     const dec = r._screen_decision || '';
     const reason = r._screen_reason || '';
     const rId = `sr-${globalIdx}-${Math.random().toString(36).slice(2, 5)}`;
-    const isSelected = state.selection.has(screeningKey(r));
     const reqFail = r._req_fail;
-    const selCell = `<td class="row-select-cell"><input type="checkbox" ${isSelected ? 'checked' : ''} onchange="SWDSelection.toggle('${esc(screeningKey(r))}')" /></td>`;
+
+    // Screen cell FIRST
     const screenCell = `<td class="screen-cell">
       <div class="screen-btns">
-        <button class="screen-btn ${dec === 'include' ? 'active-include' : ''}" onclick="applyScreening(${globalIdx},'include','${rId}')">\u2713</button>
-        <button class="screen-btn ${dec === 'maybe'   ? 'active-maybe'   : ''}" onclick="applyScreening(${globalIdx},'maybe','${rId}')">?</button>
-        <button class="screen-btn ${dec === 'exclude' ? 'active-exclude' : ''}" onclick="applyScreening(${globalIdx},'exclude','${rId}')">\u2717</button>
+        <button class="screen-btn ${dec === 'include' ? 'active-include' : ''}" onclick="applyScreening(${globalIdx},'include','${rId}')" title="Include">\u2713</button>
+        <button class="screen-btn ${dec === 'maybe'   ? 'active-maybe'   : ''}" onclick="applyScreening(${globalIdx},'maybe','${rId}')"   title="Maybe">?</button>
+        <button class="screen-btn ${dec === 'exclude' ? 'active-exclude' : ''}" onclick="applyScreening(${globalIdx},'exclude','${rId}')" title="Exclude">\u2717</button>
       </div>
-      <input type="text" id="${rId}" class="screen-reason-input" value="${esc(reason)}" placeholder="reason" />
+      <input type="text" id="${rId}" class="screen-reason-input" value="${esc(reason)}" placeholder="reason\u2026" />
     </td>`;
-    const rowClass = [dec ? 'row-' + dec : '', isSelected ? 'row-selected' : '', reqFail ? 'req-fail-row' : ''].filter(Boolean).join(' ');
-    return `<tr class="${rowClass}">` + selCell + allCols.map(s => {
+
+    const rowClass = [dec ? 'row-' + dec : '', reqFail ? 'req-fail-row' : ''].filter(Boolean).join(' ');
+
+    return `<tr class="${rowClass}">` + screenCell + allCols.map(s => {
       if (s.field === '_schemaFit') return `<td style="font-family:var(--mono);font-size:11px;color:var(--accent)">${scoreSchemaFit(r)}%</td>`;
-      if (s.field === '_termRel') return `<td style="font-family:var(--mono);font-size:11px;color:var(--blue)">${scoreTermRelevance(r)}%</td>`;
+      if (s.field === '_termRel')  return `<td style="font-family:var(--mono);font-size:11px;color:var(--blue)">${scoreTermRelevance(r)}%</td>`;
       const val = r[s.field];
-      if (s.field === 'category') return `<td><span class="cat-pill cat-${(val || 'e').toLowerCase()}">${val || '?'}</span>${reqFail ? ' <span class="req-fail-badge" title="' + esc(r._req_fail_labels || '') + '">⚠ req</span>' : ''}</td>`;
+      if (s.field === 'category') return `<td><span class="cat-pill cat-${(val || 'e').toLowerCase()}">${val || '?'}</span>${reqFail ? ' <span class="req-fail-badge" title="' + esc(r._req_fail_labels || '') + '">\u26a0 req</span>' : ''}</td>`;
       if (s.field === 'verification_status') return `<td><span class="verif-badge ${VERIF_CLASS[val] || 'verif-secondary'}" style="font-size:10px">${esc(val || '')}</span></td>`;
       if (s.field === 'screening_decision') return `<td><span class="${SCREEN_CLASS[dec] || 'screen-badge unscreened'}">${esc(dec || '\u2014')}</span></td>`;
-      if (s.field === 'screening_reason') return `<td style="font-size:11px;color:var(--ink-3)">${esc(reason)}</td>`;
+      if (s.field === 'screening_reason')  return `<td style="font-size:11px;color:var(--ink-3)">${esc(reason)}</td>`;
       if (s.field === 'doi' && val && val !== 'not reported') return `<td><a class="doi-link" href="https://doi.org/${val}" target="_blank" rel="noopener">DOI \u2192</a></td>`;
       if (s.field === 'url' && val && val !== 'not reported') return `<td><a class="doi-link" href="${esc(val)}" target="_blank" rel="noopener">URL \u2192</a></td>`;
       if (s.field === 'full_citation') return `<td class="truncate" title="${esc(String(val || ''))}">${esc(String(val || '').split('(')[0].trim().slice(0, 40))}</td>`;
       if (s.field.startsWith('slot_')) { const sv = val || ''; return `<td class="truncate" title="${esc(sv)}" style="font-size:11px;color:${sv === 'not found' ? 'var(--ink-3)' : 'var(--accent)'}">${esc(sv.slice(0, 50))}</td>`; }
       return `<td class="truncate">${esc(String(val || '\u2014'))}</td>`;
-    }).join('') + screenCell + '</tr>';
+    }).join('') + '</tr>';
   }).join('');
 
-  document.getElementById('table-footer').textContent = `Showing ${startIdx + 1}\u2013${Math.min(startIdx + pageSize, totalFiltered)} of ${totalFiltered} records${totalFiltered !== state.records.length ? ` (filtered from ${state.records.length})` : ''}`;
+  document.getElementById('table-footer').textContent =
+    `Showing ${startIdx + 1}\u2013${Math.min(startIdx + pageSize, totalFiltered)} of ${totalFiltered} records` +
+    (totalFiltered !== state.records.length ? ` (filtered from ${state.records.length})` : '');
   renderPaginationControls(totalFiltered);
 }
 
@@ -126,7 +123,8 @@ export function renderPaywallPanel() {
   const countEl = document.getElementById('paywall-count');
   if (!el) return;
   const q = (document.getElementById('paywall-search')?.value || '').toLowerCase();
-  let data = state.records.filter(r => r.doi && r.doi !== 'not reported' && (r.pdf_available === 'paywalled' || r.pdf_available === 'no' || r.pdf_available === 'unknown'));
+  let data = state.records.filter(r => r.doi && r.doi !== 'not reported' &&
+    (r.pdf_available === 'paywalled' || r.pdf_available === 'no' || r.pdf_available === 'unknown'));
   if (q) data = data.filter(r => [r.full_citation, r.country, String(r.pub_year || '')].join(' ').toLowerCase().includes(q));
   if (countEl) countEl.textContent = data.length ? `${data.length} papers` : '';
   if (!data.length) { el.innerHTML = '<div class="paywall-empty">No paywalled papers found. Run a search first.</div>'; return; }
@@ -145,14 +143,20 @@ export function renderScreeningCounts() {
   const maybe = records.filter(r => r._screen_decision === 'maybe').length;
   const un    = records.filter(r => !r._screen_decision).length;
   const el = document.getElementById('screening-counts');
-  if (el) el.innerHTML = `<span class="screen-badge include">${inc} included</span> <span class="screen-badge exclude">${exc} excluded</span> <span class="screen-badge maybe">${maybe} maybe</span> <span class="screen-badge unscreened">${un} unscreened</span>`;
+  if (el) el.innerHTML =
+    `<span class="screen-badge include">${inc} included</span> ` +
+    `<span class="screen-badge exclude">${exc} excluded</span> ` +
+    `<span class="screen-badge maybe">${maybe} maybe</span> ` +
+    `<span class="screen-badge unscreened">${un} unscreened</span>`;
 }
 
 export function renderMissingSources() {
   const el = document.getElementById('missing-list');
   if (!el) return;
   const items = (document.getElementById('cfg-missing')?.value || '').split('\n').map(s => s.trim()).filter(Boolean);
-  el.innerHTML = items.length ? items.map(s => `<div class="missing-item">${esc(s)}</div>`).join('') : '<div class="missing-item" style="opacity:.65">No known gaps listed yet.</div>';
+  el.innerHTML = items.length
+    ? items.map(s => `<div class="missing-item">${esc(s)}</div>`).join('')
+    : '<div class="missing-item" style="opacity:.65">No known gaps listed yet.</div>';
 }
 
 export function initAccordions() {
@@ -189,11 +193,11 @@ export function setStatus(state2, text) {
 
 export function updateStats() {
   document.getElementById('s-queries').textContent = state.stats.queries;
-  document.getElementById('s-raw').textContent = state.stats.raw;
-  document.getElementById('s-dedup').textContent = state.stats.dedup;
+  document.getElementById('s-raw').textContent     = state.stats.raw;
+  document.getElementById('s-dedup').textContent   = state.stats.dedup;
   document.getElementById('s-records').textContent = state.stats.records;
-  document.getElementById('s-noloc').textContent = state.stats.noloc;
-  document.getElementById('s-errors').textContent = state.stats.errors;
+  document.getElementById('s-noloc').textContent   = state.stats.noloc;
+  document.getElementById('s-errors').textContent  = state.stats.errors;
   for (const k of Object.keys(state.catCounts)) {
     const el = document.getElementById(`cat-${k.toLowerCase()}`);
     if (el) el.textContent = state.catCounts[k] || 0;
