@@ -34,10 +34,10 @@ export function dlFile(content, name, mime) {
 
 // ── Shared mutable state ────────────────────────────────────────
 export const state = {
-  records: [],          // window._SWDRecords equivalent
-  selection: new Set(), // window._SWDSelection
-  filteredView: [],     // window._SWDFilteredView
-  lastSettings: null,   // window._lastSWDSettings
+  records: [],
+  selection: new Set(),
+  filteredView: [],
+  lastSettings: null,
   isRunning: false,
   abortCtrl: null,
   midTerms: [],
@@ -83,12 +83,22 @@ export function logSearch(db, term, hits, newN, dupes) {
 export function clearSearchLog() { searchLog.length = 0; }
 
 // ── Screening state ─────────────────────────────────────────────
-const _screening = new Map();
+// Screening is stored DIRECTLY ON the record object (_screen_decision, _screen_reason).
+// This eliminates all key-lookup complexity and cross-module Map sharing issues.
+// getScreening / setScreening kept as thin wrappers for API compatibility.
 export function screeningKey(r) {
+  // Still used for row selection (checkboxes), not for screening state
   return (r.doi && r.doi !== 'not reported')
     ? r.doi
     : (r.full_citation || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 80);
 }
-export function getScreening(r) { return _screening.get(screeningKey(r)) || { decision: '', reason: '' }; }
-export function setScreening(r, decision, reason) { _screening.set(screeningKey(r), { decision, reason: reason || '' }); }
-export function clearScreening() { _screening.clear(); }
+export function getScreening(r) {
+  return { decision: r._screen_decision || '', reason: r._screen_reason || '' };
+}
+export function setScreening(r, decision, reason) {
+  r._screen_decision = decision || '';
+  r._screen_reason = reason || '';
+}
+export function clearScreening() {
+  // Now a no-op — screening is cleared when state.records is replaced at search start
+}

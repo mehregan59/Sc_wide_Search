@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // UI.JS — renderTable, renderPaywallPanel, screening UI, tabs
 // ═══════════════════════════════════════════════════════════════
-import { esc, state, screeningKey, getScreening, setScreening, VERIF_CLASS, SCREEN_CLASS, DB_LABELS } from './state.js';
+import { esc, state, screeningKey, getScreening, VERIF_CLASS, SCREEN_CLASS, DB_LABELS } from './state.js';
 import { getActiveSchema } from './schema.js';
 import { slots } from './slots.js';
 import { scoreSchemaFit, scoreTermRelevance, getExportOptions } from './scores.js';
@@ -42,9 +42,9 @@ export function renderTable() {
     if (state.currentCat !== 'all' && r.category !== state.currentCat) return false;
     if (v && r.verification_status !== v) return false;
     if (state.screenFilter) {
-      const sc = getScreening(r).decision;
-      if (state.screenFilter === 'unscreened' && sc) return false;
-      if (state.screenFilter !== 'unscreened' && sc !== state.screenFilter) return false;
+      const dec = r._screen_decision || '';
+      if (state.screenFilter === 'unscreened' && dec) return false;
+      if (state.screenFilter !== 'unscreened' && dec !== state.screenFilter) return false;
     }
     if (reqFilter === 'fail' && !r._req_fail) return false;
     if (reqFilter === 'pass' && r._req_fail) return false;
@@ -83,28 +83,37 @@ export function renderTable() {
   const startIdx = (state.paginationPage - 1) * pageSize;
   const pageData = data.slice(startIdx, startIdx + pageSize);
 
-  tbody.innerHTML = pageData.map(r => {
-    const sc2 = getScreening(r);
-    const key = screeningKey(r);
-    const rId = `sr-${key.slice(-8)}-${Math.random().toString(36).slice(2, 6)}`;
-    const isSelected = state.selection.has(key);
+  // Use array index as the onclick identifier — avoids all key-encoding issues
+  tbody.innerHTML = pageData.map((r, pageIdx) => {
+    const globalIdx = state.records.indexOf(r);
+    const dec = r._screen_decision || '';
+    const reason = r._screen_reason || '';
+    const rId = `sr-${globalIdx}-${Math.random().toString(36).slice(2, 5)}`;
+    const isSelected = state.selection.has(screeningKey(r));
     const reqFail = r._req_fail;
-    const selCell = `<td class="row-select-cell"><input type="checkbox" ${isSelected ? 'checked' : ''} onchange="SWDSelection.toggle('${esc(key)}')" /></td>`;
-    const screenCell = `<td class="screen-cell"><div class="screen-btns"><button class="screen-btn ${sc2.decision === 'include' ? 'active-include' : ''}" onclick="applyScreening('${esc(key)}','include','${rId}')">✓</button><button class="screen-btn ${sc2.decision === 'maybe' ? 'active-maybe' : ''}" onclick="applyScreening('${esc(key)}','maybe','${rId}')">?</button><button class="screen-btn ${sc2.decision === 'exclude' ? 'active-exclude' : ''}" onclick="applyScreening('${esc(key)}','exclude','${rId}')">✗</button></div><input type="text" id="${rId}" class="screen-reason-input" value="${esc(sc2.reason)}" placeholder="reason" /></td>`;
-    const rowClass = [sc2.decision ? 'row-' + sc2.decision : '', isSelected ? 'row-selected' : '', reqFail ? 'req-fail-row' : ''].filter(Boolean).join(' ');
+    const selCell = `<td class="row-select-cell"><input type="checkbox" ${isSelected ? 'checked' : ''} onchange="SWDSelection.toggle('${esc(screeningKey(r))}')" /></td>`;
+    const screenCell = `<td class="screen-cell">
+      <div class="screen-btns">
+        <button class="screen-btn ${dec === 'include' ? 'active-include' : ''}" onclick="applyScreening(${globalIdx},'include','${rId}')">\u2713</button>
+        <button class="screen-btn ${dec === 'maybe'   ? 'active-maybe'   : ''}" onclick="applyScreening(${globalIdx},'maybe','${rId}')">?</button>
+        <button class="screen-btn ${dec === 'exclude' ? 'active-exclude' : ''}" onclick="applyScreening(${globalIdx},'exclude','${rId}')">\u2717</button>
+      </div>
+      <input type="text" id="${rId}" class="screen-reason-input" value="${esc(reason)}" placeholder="reason" />
+    </td>`;
+    const rowClass = [dec ? 'row-' + dec : '', isSelected ? 'row-selected' : '', reqFail ? 'req-fail-row' : ''].filter(Boolean).join(' ');
     return `<tr class="${rowClass}">` + selCell + allCols.map(s => {
       if (s.field === '_schemaFit') return `<td style="font-family:var(--mono);font-size:11px;color:var(--accent)">${scoreSchemaFit(r)}%</td>`;
       if (s.field === '_termRel') return `<td style="font-family:var(--mono);font-size:11px;color:var(--blue)">${scoreTermRelevance(r)}%</td>`;
       const val = r[s.field];
       if (s.field === 'category') return `<td><span class="cat-pill cat-${(val || 'e').toLowerCase()}">${val || '?'}</span>${reqFail ? ' <span class="req-fail-badge" title="' + esc(r._req_fail_labels || '') + '">⚠ req</span>' : ''}</td>`;
       if (s.field === 'verification_status') return `<td><span class="verif-badge ${VERIF_CLASS[val] || 'verif-secondary'}" style="font-size:10px">${esc(val || '')}</span></td>`;
-      if (s.field === 'screening_decision') { const sc3 = getScreening(r); return `<td><span class="${SCREEN_CLASS[sc3.decision] || 'screen-badge unscreened'}">${esc(sc3.decision || '—')}</span></td>`; }
-      if (s.field === 'screening_reason') { const sc3 = getScreening(r); return `<td style="font-size:11px;color:var(--ink-3)">${esc(sc3.reason || '')}</td>`; }
-      if (s.field === 'doi' && val && val !== 'not reported') return `<td><a class="doi-link" href="https://doi.org/${val}" target="_blank" rel="noopener">DOI →</a></td>`;
-      if (s.field === 'url' && val && val !== 'not reported') return `<td><a class="doi-link" href="${esc(val)}" target="_blank" rel="noopener">URL →</a></td>`;
+      if (s.field === 'screening_decision') return `<td><span class="${SCREEN_CLASS[dec] || 'screen-badge unscreened'}">${esc(dec || '\u2014')}</span></td>`;
+      if (s.field === 'screening_reason') return `<td style="font-size:11px;color:var(--ink-3)">${esc(reason)}</td>`;
+      if (s.field === 'doi' && val && val !== 'not reported') return `<td><a class="doi-link" href="https://doi.org/${val}" target="_blank" rel="noopener">DOI \u2192</a></td>`;
+      if (s.field === 'url' && val && val !== 'not reported') return `<td><a class="doi-link" href="${esc(val)}" target="_blank" rel="noopener">URL \u2192</a></td>`;
       if (s.field === 'full_citation') return `<td class="truncate" title="${esc(String(val || ''))}">${esc(String(val || '').split('(')[0].trim().slice(0, 40))}</td>`;
       if (s.field.startsWith('slot_')) { const sv = val || ''; return `<td class="truncate" title="${esc(sv)}" style="font-size:11px;color:${sv === 'not found' ? 'var(--ink-3)' : 'var(--accent)'}">${esc(sv.slice(0, 50))}</td>`; }
-      return `<td class="truncate">${esc(String(val || '—'))}</td>`;
+      return `<td class="truncate">${esc(String(val || '\u2014'))}</td>`;
     }).join('') + screenCell + '</tr>';
   }).join('');
 
@@ -125,16 +134,16 @@ export function renderPaywallPanel() {
     const au = (r.full_citation || '').split('(')[0].trim().slice(0, 80);
     const m = (r.full_citation || '').match(/\)\.\s+(.+?)\.\s+DOI:/);
     const title = m ? m[1].slice(0, 200) : (r.full_citation || '').slice(0, 120);
-    return `<div class="paywall-row"><div class="paywall-index">${i + 1}</div><div class="paywall-body"><div class="paywall-title">${esc(title)}</div><div class="paywall-meta">${esc(au)} · ${r.pub_year || 'n.d.'} · ${esc(r.country || '—')}</div><div class="paywall-doi"><code class="doi-code" id="doi-code-${i}">${esc(r.doi)}</code><button class="btn btn-sm paywall-copy" onclick="copyDOI('${r.doi}','doi-code-${i}')">Copy DOI</button></div><div class="paywall-actions"><a class="paywall-action-link" href="https://doi.org/${esc(r.doi)}" target="_blank" rel="noopener">Publisher →</a> <a class="paywall-action-link" href="https://scholar.google.com/scholar?q=${encodeURIComponent(r.doi)}" target="_blank" rel="noopener">Google Scholar →</a> <a class="paywall-action-link" href="https://europepmc.org/search?query=${encodeURIComponent(r.doi)}" target="_blank" rel="noopener">Europe PMC →</a> <a class="paywall-action-link" href="https://unpaywall.org/${esc(r.doi)}" target="_blank" rel="noopener">Unpaywall →</a></div></div></div>`;
+    return `<div class="paywall-row"><div class="paywall-index">${i + 1}</div><div class="paywall-body"><div class="paywall-title">${esc(title)}</div><div class="paywall-meta">${esc(au)} \u00b7 ${r.pub_year || 'n.d.'} \u00b7 ${esc(r.country || '\u2014')}</div><div class="paywall-doi"><code class="doi-code" id="doi-code-${i}">${esc(r.doi)}</code><button class="btn btn-sm paywall-copy" onclick="copyDOI('${r.doi}','doi-code-${i}')">Copy DOI</button></div><div class="paywall-actions"><a class="paywall-action-link" href="https://doi.org/${esc(r.doi)}" target="_blank" rel="noopener">Publisher \u2192</a> <a class="paywall-action-link" href="https://scholar.google.com/scholar?q=${encodeURIComponent(r.doi)}" target="_blank" rel="noopener">Google Scholar \u2192</a> <a class="paywall-action-link" href="https://europepmc.org/search?query=${encodeURIComponent(r.doi)}" target="_blank" rel="noopener">Europe PMC \u2192</a> <a class="paywall-action-link" href="https://unpaywall.org/${esc(r.doi)}" target="_blank" rel="noopener">Unpaywall \u2192</a></div></div></div>`;
   }).join('');
 }
 
 export function renderScreeningCounts() {
   const records = state.records;
-  const inc = records.filter(r => getScreening(r).decision === 'include').length;
-  const exc = records.filter(r => getScreening(r).decision === 'exclude').length;
-  const maybe = records.filter(r => getScreening(r).decision === 'maybe').length;
-  const un = records.filter(r => !getScreening(r).decision).length;
+  const inc   = records.filter(r => r._screen_decision === 'include').length;
+  const exc   = records.filter(r => r._screen_decision === 'exclude').length;
+  const maybe = records.filter(r => r._screen_decision === 'maybe').length;
+  const un    = records.filter(r => !r._screen_decision).length;
   const el = document.getElementById('screening-counts');
   if (el) el.innerHTML = `<span class="screen-badge include">${inc} included</span> <span class="screen-badge exclude">${exc} excluded</span> <span class="screen-badge maybe">${maybe} maybe</span> <span class="screen-badge unscreened">${un} unscreened</span>`;
 }

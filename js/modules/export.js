@@ -1,12 +1,17 @@
 // ═══════════════════════════════════════════════════════════════
 // EXPORT.JS — all download functions
 // ═══════════════════════════════════════════════════════════════
-import { esc, dlFile, stamp, lines, checked, getScreening, state, searchLog, DB_LABELS } from './state.js';
+import { esc, dlFile, stamp, lines, state, searchLog, DB_LABELS } from './state.js';
 import { getActiveSchema, LIVE_SCHEMA, customFields } from './schema.js';
 import { scoreSchemaFit, scoreTermRelevance, getExportOptions } from './scores.js';
 
 function getPaywalled() {
   return state.records.filter(r => r.doi && r.doi !== 'not reported' && (r.pdf_available === 'paywalled' || r.pdf_available === 'no' || r.pdf_available === 'unknown'));
+}
+
+// Read screening directly from record properties
+function sc(r) {
+  return { decision: r._screen_decision || '', reason: r._screen_reason || '' };
 }
 
 export function exportCSV(cat) {
@@ -20,8 +25,8 @@ export function exportCSV(cat) {
   if (opts.includeAbstract) extraH.push('Abstract');
   const headers = [...active.map(s => s.label || s.field), ...extraH];
   const rows = data.map(r => {
-    const sc = getScreening(r);
-    const full = { ...r, screening_decision: sc.decision, screening_reason: sc.reason };
+    const s2 = sc(r);
+    const full = { ...r, screening_decision: s2.decision, screening_reason: s2.reason };
     const base = active.map(s => `"${String(full[s.field] || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`);
     const extra = [];
     if (opts.includeSchemaFit) extra.push(`"${scoreSchemaFit(r)}"`);
@@ -34,7 +39,7 @@ export function exportCSV(cat) {
 
 export function exportJSON() {
   if (!state.records.length) { alert('No records.'); return; }
-  const out = state.records.map(r => { const sc = getScreening(r); return { ...r, screening_decision: sc.decision, screening_reason: sc.reason, abstract: r._abstract || null, schema_fit_pct: scoreSchemaFit(r), term_relevance_pct: scoreTermRelevance(r) }; });
+  const out = state.records.map(r => { const s2 = sc(r); return { ...r, screening_decision: s2.decision, screening_reason: s2.reason, abstract: r._abstract || null, schema_fit_pct: scoreSchemaFit(r), term_relevance_pct: scoreTermRelevance(r) }; });
   dlFile(JSON.stringify(out, null, 2), `sciwide_records_${stamp()}.json`, 'application/json');
 }
 
@@ -56,7 +61,7 @@ export function exportRIS() {
     const au = (r.full_citation || '').split('(')[0].trim().split(';').map(a => a.trim()).filter(Boolean);
     const m = (r.full_citation || '').match(/\)\.\s+(.+?)\.\s+DOI:/);
     const title = m ? m[1].trim() : (r.full_citation || '').slice(0, 120);
-    const sc = getScreening(r);
+    const s2 = sc(r);
     const ln = ['TY  - JOUR'];
     au.forEach(a => ln.push(`AU  - ${a}`));
     ln.push(`PY  - ${r.pub_year || ''}`, `TI  - ${title}`);
@@ -65,8 +70,8 @@ export function exportRIS() {
     if (r.country && r.country !== 'not reported') ln.push(`CY  - ${r.country}`);
     ln.push(`N1  - Cat: ${r.category} | Verif: ${r.verification_status} | DB: ${r.source_db}`);
     if (r.notes) ln.push(`N2  - ${r.notes}`);
-    if (sc.decision) ln.push(`KW  - screening:${sc.decision}`);
-    if (sc.reason) ln.push(`KW  - reason:${sc.reason}`);
+    if (s2.decision) ln.push(`KW  - screening:${s2.decision}`);
+    if (s2.reason) ln.push(`KW  - reason:${s2.reason}`);
     ln.push('ER  - ');
     return ln.join('\r\n');
   });
@@ -80,9 +85,9 @@ export function exportEndNoteXML() {
     const au = (r.full_citation || '').split('(')[0].trim().split(';').map(a => a.trim()).filter(Boolean);
     const m = (r.full_citation || '').match(/\)\.\s+(.+?)\.\s+DOI:/);
     const title = m ? m[1].trim() : (r.full_citation || '').slice(0, 200);
-    const sc = getScreening(r);
+    const s2 = sc(r);
     const auXml = au.map(a => `<author>${x(a)}</author>`).join('');
-    return `  <record>\n    <ref-type name="Journal Article">17</ref-type>\n    <contributors><authors>${auXml}</authors></contributors>\n    <titles><title>${x(title)}</title></titles>\n    <dates><year>${x(String(r.pub_year || ''))}</year></dates>\n    <place-published>${x(r.country || '')}</place-published>\n    <isbn>${x(r.doi && r.doi !== 'not reported' ? r.doi : '')}</isbn>\n    <urls><related-urls><url>${x(r.url && r.url !== 'not reported' ? r.url : '')}</url></related-urls></urls>\n    <electronic-resource-num>${x(r.doi && r.doi !== 'not reported' ? r.doi : '')}</electronic-resource-num>\n    <abstract>${x(r.excerpt && r.excerpt !== 'not reported' ? r.excerpt : '')}</abstract>\n    <notes>${x(`Cat: ${r.category} | DB: ${r.source_db}${sc.decision ? ' | Screen: ' + sc.decision : ''}`)}</notes>\n    <keywords>${sc.decision ? `<keyword>screening:${x(sc.decision)}</keyword>` : ''}</keywords>\n    <language>${x(r.language || 'en')}</language>\n  </record>`;
+    return `  <record>\n    <ref-type name="Journal Article">17</ref-type>\n    <contributors><authors>${auXml}</authors></contributors>\n    <titles><title>${x(title)}</title></titles>\n    <dates><year>${x(String(r.pub_year || ''))}</year></dates>\n    <place-published>${x(r.country || '')}</place-published>\n    <isbn>${x(r.doi && r.doi !== 'not reported' ? r.doi : '')}</isbn>\n    <urls><related-urls><url>${x(r.url && r.url !== 'not reported' ? r.url : '')}</url></related-urls></urls>\n    <electronic-resource-num>${x(r.doi && r.doi !== 'not reported' ? r.doi : '')}</electronic-resource-num>\n    <abstract>${x(r.excerpt && r.excerpt !== 'not reported' ? r.excerpt : '')}</abstract>\n    <notes>${x(`Cat: ${r.category} | DB: ${r.source_db}${s2.decision ? ' | Screen: ' + s2.decision : ''}`)}</notes>\n    <keywords>${s2.decision ? `<keyword>screening:${x(s2.decision)}</keyword>` : ''}</keywords>\n    <language>${x(r.language || 'en')}</language>\n  </record>`;
   }).join('\n');
   dlFile(`<?xml version="1.0" encoding="UTF-8"?>\n<xml><records>\n${records}\n</records></xml>`, `sciwide_${stamp()}.xml`, 'application/xml;charset=utf-8;');
 }
@@ -106,7 +111,7 @@ export function exportSchema() {
 export function exportMissing() {
   const items = lines('cfg-missing');
   if (!items.length) { alert('No known-gap sources listed yet.'); return; }
-  dlFile(['Known gaps / hard-to-access sources', '═'.repeat(56), 'Generated: ' + new Date().toISOString(), '', ...items.map((s, i) => `${i + 1}. ${s}`)].join('\n'), `missing_sources_${stamp()}.txt`, 'text/plain;charset=utf-8;');
+  dlFile(['Known gaps / hard-to-access sources', '\u2550'.repeat(56), 'Generated: ' + new Date().toISOString(), '', ...items.map((s, i) => `${i + 1}. ${s}`)].join('\n'), `missing_sources_${stamp()}.txt`, 'text/plain;charset=utf-8;');
 }
 
 export function exportSearchLog() {
@@ -114,26 +119,26 @@ export function exportSearchLog() {
   const s = state.lastSettings || {};
   const terms = [...(s.primaryTerms || []), ...(s.synonymTerms || []), ...(s.extraTerms || [])];
   const dbs = [...new Set(searchLog.map(l => l.db))];
-  const inc = state.records.filter(r => getScreening(r).decision === 'include').length;
-  const exc = state.records.filter(r => getScreening(r).decision === 'exclude').length;
-  const maybe = state.records.filter(r => getScreening(r).decision === 'maybe').length;
-  const un = state.records.filter(r => !getScreening(r).decision).length;
+  const inc   = state.records.filter(r => r._screen_decision === 'include').length;
+  const exc   = state.records.filter(r => r._screen_decision === 'exclude').length;
+  const maybe = state.records.filter(r => r._screen_decision === 'maybe').length;
+  const un    = state.records.filter(r => !r._screen_decision).length;
   const hdr = [
-    'SciWide Search — PRISMA-style Search Report', '═'.repeat(60),
+    'SciWide Search \u2014 PRISMA-style Search Report', '\u2550'.repeat(60),
     `Generated: ${new Date().toISOString()}`, '',
-    '── SEARCH STRATEGY ───────────────────────────────────────────',
-    `Primary terms (${terms.length}):`, ...terms.map(t => `  • ${t}`), '',
-    `Databases searched (${dbs.length}):`, ...dbs.map(d => `  • ${DB_LABELS[d] || d}`), '',
-    `Year range: ${s.yearFrom || '(all)'} – ${s.yearTo || '(all)'}`,
+    '\u2500\u2500 SEARCH STRATEGY \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
+    `Primary terms (${terms.length}):`, ...terms.map(t => `  \u2022 ${t}`), '',
+    `Databases searched (${dbs.length}):`, ...dbs.map(d => `  \u2022 ${DB_LABELS[d] || d}`), '',
+    `Year range: ${s.yearFrom || '(all)'} \u2013 ${s.yearTo || '(all)'}`,
     `Total queries: ${searchLog.length}`,
     `Total raw hits: ${searchLog.reduce((a, l) => a + l.hits, 0)}`,
     `After deduplication: ${searchLog.reduce((a, l) => a + (l.new || 0), 0)}`,
     `Records in session: ${state.records.length}`, '',
-    '── SCREENING SUMMARY ─────────────────────────────────────────',
+    '\u2500\u2500 SCREENING SUMMARY \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
     `Included: ${inc}  Excluded: ${exc}  Maybe: ${maybe}  Unscreened: ${un}`, '',
-    '── QUERY-BY-QUERY LOG ─────────────────────────────────────────',
+    '\u2500\u2500 QUERY-BY-QUERY LOG \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
     'Timestamp                | Database                      | Term                          | Hits | New | Dupes',
-    '─'.repeat(105),
+    '\u2500'.repeat(105),
   ];
   const rows = searchLog.map(l =>
     `${l.ts.replace('T', ' ').slice(0, 19)} | ${(DB_LABELS[l.db] || l.db).padEnd(29)} | ${(l.term || '(occurrence)').slice(0, 29).padEnd(29)} | ${String(l.hits).padStart(4)} | ${String(l.new || 0).padStart(3)} | ${String(l.dupes || 0).padStart(5)}`
@@ -142,11 +147,11 @@ export function exportSearchLog() {
 }
 
 export function exportScreened(decision) {
-  const data = state.records.filter(r => getScreening(r).decision === decision);
-  if (!data.length) { alert(`No records marked as "${decision}" yet.`); return; }
+  const data = state.records.filter(r => (r._screen_decision || '') === decision);
+  if (!data.length) { alert(`No records marked as "${decision}" yet.\n\nTo mark records: go to Results tab, find a record, and click the \u2713 (include), ? (maybe), or \u2717 (exclude) button in the Screen column.`); return; }
   const active = getActiveSchema();
   const headers = [...active.map(s => s.label || s.field), 'Screening', 'Reason'];
-  const rows = data.map(r => { const sc = getScreening(r); return [...active.map(s => `"${String(r[s.field] || '').replace(/"/g, '""')}"`), `"${sc.decision}"`, `"${sc.reason.replace(/"/g, '""')}"`].join(','); });
+  const rows = data.map(r => [...active.map(s => `"${String(r[s.field] || '').replace(/"/g, '""')}"`), `"${r._screen_decision || ''}"`, `"${(r._screen_reason || '').replace(/"/g, '""')}"`].join(','));
   dlFile([headers.join(','), ...rows].join('\r\n'), `sciwide_${decision}_${stamp()}.csv`, 'text/csv;charset=utf-8;');
 }
 
@@ -154,8 +159,8 @@ export function exportMarkdown() {
   if (!state.records.length) { alert('No records.'); return; }
   const s = state.lastSettings || {};
   const terms = [...(s.primaryTerms || []), ...(s.synonymTerms || []), ...(s.extraTerms || [])];
-  const inc = state.records.filter(r => getScreening(r).decision === 'include').length;
-  const exc = state.records.filter(r => getScreening(r).decision === 'exclude').length;
+  const inc = state.records.filter(r => r._screen_decision === 'include').length;
+  const exc = state.records.filter(r => r._screen_decision === 'exclude').length;
   const catMap = { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 };
   state.records.forEach(r => { if (catMap[r.category] !== undefined) catMap[r.category]++; });
   const countryMap = {};
@@ -163,12 +168,12 @@ export function exportMarkdown() {
   const topC = Object.entries(countryMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
   const dbs = [...new Set(state.records.map(r => r.source_db).filter(Boolean))];
   const out = [
-    `# SciWide Search — Session Summary`, ``,
+    `# SciWide Search \u2014 Session Summary`, ``,
     `**Generated:** ${new Date().toISOString()}  `,
     `**Citation:** Ebrahimi, M. (2026). *SciWide Search* [Software]. https://github.com/mehregan59/Sc_wide_Search`, ``,
     `## Search strategy`, ``,
     terms.length ? `**Terms:** ${terms.map(t => `\`${t}\``).join(', ')}` : '*No terms recorded.*', ``,
-    `**Year range:** ${s.yearFrom || '(all)'} – ${s.yearTo || '(all)'}`, ``,
+    `**Year range:** ${s.yearFrom || '(all)'} \u2013 ${s.yearTo || '(all)'}`, ``,
     `**Databases:** ${dbs.join(', ') || '(none recorded)'}`, ``,
     `## Records overview`, ``,
     `| Metric | Count |`, `|---|---|`,
@@ -182,10 +187,10 @@ export function exportMarkdown() {
     ...topC.map(([c, n]) => `| ${c} | ${n} |`), ``,
     `## Included records`, ``,
   ];
-  const incData = state.records.filter(r => getScreening(r).decision === 'include');
+  const incData = state.records.filter(r => r._screen_decision === 'include');
   if (incData.length) {
     out.push(`| # | Authors | Year | Country | DOI |`, `|---|---|---|---|---|`);
-    incData.forEach((r, i) => { const au = (r.full_citation || '').split('(')[0].trim().slice(0, 60); const doi = r.doi && r.doi !== 'not reported' ? `[${r.doi}](https://doi.org/${r.doi})` : '—'; out.push(`| ${i + 1} | ${au} | ${r.pub_year || '—'} | ${r.country || '—'} | ${doi} |`); });
+    incData.forEach((r, i) => { const au = (r.full_citation || '').split('(')[0].trim().slice(0, 60); const doi = r.doi && r.doi !== 'not reported' ? `[${r.doi}](https://doi.org/${r.doi})` : '\u2014'; out.push(`| ${i + 1} | ${au} | ${r.pub_year || '\u2014'} | ${r.country || '\u2014'} | ${doi} |`); });
   } else { out.push('*No records marked as included yet.*'); }
   out.push('');
   dlFile(out.join('\n'), `sciwide_summary_${stamp()}.md`, 'text/markdown;charset=utf-8;');
@@ -194,7 +199,7 @@ export function exportMarkdown() {
 export function exportPaywallTxt() {
   const data = getPaywalled();
   if (!data.length) { alert('No paywalled records.'); return; }
-  dlFile(['Paywalled papers — DOI list', '═'.repeat(40), `Generated: ${new Date().toISOString()}`, `Total: ${data.length}`, '', ...data.map((r, i) => `[${i + 1}] DOI: ${r.doi}\n    Authors: ${(r.full_citation || '').split('(')[0].trim().slice(0, 100)}\n    Year: ${r.pub_year || 'n.d.'} | Category: ${r.category}\n    Unpaywall: https://unpaywall.org/${r.doi}\n`)].join('\n'), `paywalled_dois_${stamp()}.txt`, 'text/plain;charset=utf-8;');
+  dlFile(['Paywalled papers \u2014 DOI list', '\u2550'.repeat(40), `Generated: ${new Date().toISOString()}`, `Total: ${data.length}`, '', ...data.map((r, i) => `[${i + 1}] DOI: ${r.doi}\n    Authors: ${(r.full_citation || '').split('(')[0].trim().slice(0, 100)}\n    Year: ${r.pub_year || 'n.d.'} | Category: ${r.category}\n    Unpaywall: https://unpaywall.org/${r.doi}\n`)].join('\n'), `paywalled_dois_${stamp()}.txt`, 'text/plain;charset=utf-8;');
 }
 
 export function exportPaywallCsv() {
@@ -212,7 +217,7 @@ export function exportDelimited() {
   const includeHeader = document.getElementById('custom-header')?.value !== 'no';
   const active = getActiveSchema();
   function cell(v) { const s = String(v || '').replace(/\n/g, ' '); return doQuote ? '"' + s.replace(/"/g, '""') + '"' : s.replace(new RegExp('\\' + delim, 'g'), ' '); }
-  const rows = state.records.map(r => { const sc = getScreening(r); const full = { ...r, screening_decision: sc.decision, screening_reason: sc.reason }; return active.map(s => cell(full[s.field] || '')).join(delim); });
+  const rows = state.records.map(r => { const s2 = sc(r); const full = { ...r, screening_decision: s2.decision, screening_reason: s2.reason }; return active.map(s => cell(full[s.field] || '')).join(delim); });
   const header = active.map(s => cell(s.label || s.field)).join(delim);
   const ext = delim === '\t' ? 'tsv' : 'csv';
   dlFile([...(includeHeader ? [header] : []), ...rows].join('\r\n'), `sciwide_records_${stamp()}.${ext}`, 'text/plain;charset=utf-8;');

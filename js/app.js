@@ -1,60 +1,55 @@
 // ═══════════════════════════════════════════════════════════════
 // APP.JS — entry point (ES module)
-// Imports all modules, wires events, runs the search loop
 // ═══════════════════════════════════════════════════════════════
-import { state, lines, esc, DB_LABELS, STUB_DBS, ONCE_DBS, logSearch, clearSearchLog, screeningKey, getScreening, setScreening, clearScreening } from './modules/state.js';
+import { state, lines, esc, DB_LABELS, STUB_DBS, ONCE_DBS, logSearch, clearSearchLog, screeningKey } from './modules/state.js';
 import { LIVE_SCHEMA, customFields, getActiveSchema, renderSchemaEditor, renderSchemaPreview, SWDSchema } from './modules/schema.js';
-import { engineQuery, resetEngineCache, sleep } from './modules/engines.js';
+import { engineQuery, resetEngineCache } from './modules/engines.js';
 import { processHit, isDuplicate, resetSeen } from './modules/extractor.js';
 import { SWDExportFn } from './modules/export.js';
 import { serializePreset, applyPreset, savePreset, loadPresetFile, handlePresetFile, loadPresetFromUrl, loadBundledPreset, connectPresetDeps } from './modules/presets.js';
 import { SWDSlots, slots, renderSlots, applySlots } from './modules/slots.js';
 import { scoreSchemaFit, scoreTermRelevance, getExportOptions, updateSizeWarning, SWDScores } from './modules/scores.js';
 import { SWDReq, renderRequirements, applyRequirements } from './modules/requirements.js';
-import { DISCIPLINE_DB_MAP, SWDDiscipline, renderDisciplineSelector, SWDScope, renderScopeChips, SCOPE_PRESETS } from './modules/databases.js';
-import { SWDSelection, renderSelectionBar, renderPaginationControls, withScopeCheck, initScopeModal, getSelectedRecords } from './modules/selection.js';
+import { DISCIPLINE_DB_MAP, SWDDiscipline, renderDisciplineSelector, SWDScope, SCOPE_PRESETS } from './modules/databases.js';
+import { SWDSelection, renderSelectionBar, withScopeCheck, initScopeModal } from './modules/selection.js';
 import { switchTab, renderTable, renderPaywallPanel, renderScreeningCounts, renderMissingSources, initAccordions, logMsg, setProgress, setStatus, updateStats } from './modules/ui.js';
 
-// ── Expose globals for inline HTML event handlers ───────────────
-window.SWDSchema = SWDSchema;
-window.SWDSlots = SWDSlots;
-window.SWDScores = SWDScores;
-window.SWDReq = SWDReq;
+// ── Expose globals for inline HTML handlers ─────────────────────
+window.SWDSchema    = SWDSchema;
+window.SWDSlots     = SWDSlots;
+window.SWDScores    = SWDScores;
+window.SWDReq       = SWDReq;
 window.SWDDiscipline = SWDDiscipline;
-window.SWDScope = SWDScope;
+window.SWDScope     = SWDScope;
 window.SWDSelection = SWDSelection;
-window.SWDExportFn = SWDExportFn;
-window._renderTable = renderTable; // used by selection.js
+window.SWDExportFn  = SWDExportFn;
+window._renderTable = renderTable;
 
-// Wrap export fns with scope check.
-// Screening-based exports (screened, searchLog, markdown, missing, schema)
-// always operate on ALL records — they're already self-filtered by screening
-// decision or session metadata, so the scope modal would only break them.
+// Wrap export fns with scope check (screening-based exports bypass it)
 (function wrapExports() {
-  // These bypass the scope modal entirely — always use all records
-  const NO_SCOPE = new Set(['screened', 'searchLog', 'markdown', 'missing', 'schema']);
+  const NO_SCOPE = new Set(['screened','searchLog','markdown','missing','schema']);
   const orig = { ...SWDExportFn };
   Object.keys(orig).forEach(k => {
-    if (NO_SCOPE.has(k)) {
-      SWDExportFn[k] = (...args) => orig[k](...args);
-    } else {
-      SWDExportFn[k] = (...args) => withScopeCheck(orig[k], args);
-    }
+    SWDExportFn[k] = NO_SCOPE.has(k) ? (...args) => orig[k](...args) : (...args) => withScopeCheck(orig[k], args);
   });
   const origSlotExport = SWDSlots.exportSlot.bind(SWDSlots);
-  const origSlotAll = SWDSlots.exportAll.bind(SWDSlots);
+  const origSlotAll   = SWDSlots.exportAll.bind(SWDSlots);
   SWDSlots.exportSlot = id => withScopeCheck(origSlotExport, [id]);
-  SWDSlots.exportAll = () => withScopeCheck(origSlotAll, []);
+  SWDSlots.exportAll  = ()  => withScopeCheck(origSlotAll,   []);
 })();
 
-// ── Screening (global for inline handlers) ───────────────────────
-window.applyScreening = function(key, decision, reasonId) {
+// ── Screening — applyScreening now uses array index, not string key ────
+// Called from onclick="applyScreening(globalIdx, decision, rId)"
+window.applyScreening = function(idx, decision, reasonId) {
+  const r = state.records[idx];
+  if (!r) return;
   const reason = (document.getElementById(reasonId)?.value || '').trim();
-  const r = state.records.find(rec => screeningKey(rec) === key);
-  if (r) setScreening(r, decision, reason);
+  r._screen_decision = decision;
+  r._screen_reason   = reason;
   renderTable();
   renderScreeningCounts();
 };
+
 window.copyDOI = function(doi, codeId) {
   navigator.clipboard.writeText(doi).then(() => {
     const el = document.getElementById(codeId);
@@ -70,19 +65,21 @@ window.copyCitation = function(btn) {
 // ── Settings ─────────────────────────────────────────────────────
 function getSettings() {
   return {
-    primaryTerms: lines('cfg-primary'), synonymTerms: lines('cfg-synonyms'),
-    extraTerms: lines('cfg-extra'), excludeTerms: lines('cfg-exclude'),
-    yearFrom: parseInt(document.getElementById('cfg-yr-from').value) || null,
-    yearTo: parseInt(document.getElementById('cfg-yr-to').value) || null,
-    maxPerQuery: parseInt(document.getElementById('cfg-max').value) || 500,
-    languages: document.getElementById('cfg-langs').value.split(',').map(s => s.trim()).filter(Boolean),
-    geoReq: 0,
-    databases: SWDDiscipline.getChecked(),
-    scope: SWDScope.getTerms(),
+    primaryTerms:  lines('cfg-primary'),
+    synonymTerms:  lines('cfg-synonyms'),
+    extraTerms:    lines('cfg-extra'),
+    excludeTerms:  lines('cfg-exclude'),
+    yearFrom:      parseInt(document.getElementById('cfg-yr-from').value) || null,
+    yearTo:        parseInt(document.getElementById('cfg-yr-to').value)   || null,
+    maxPerQuery:   parseInt(document.getElementById('cfg-max').value)     || 500,
+    languages:     document.getElementById('cfg-langs').value.split(',').map(s => s.trim()).filter(Boolean),
+    geoReq:        0,
+    databases:     SWDDiscipline.getChecked(),
+    scope:         SWDScope.getTerms(),
   };
 }
 
-// ── Init UI ──────────────────────────────────────────────────────
+// ── Init ──────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   connectPresetDeps({ renderMissingSources, renderTable, logMsg });
   renderSchemaEditor();
@@ -96,65 +93,46 @@ document.addEventListener('DOMContentLoaded', () => {
   initAccordions();
   renderSelectionBar();
 
-  // ── Nav tabs ────────────────────────────────────────────────
   document.querySelectorAll('.nav-tab').forEach(btn =>
     btn.addEventListener('click', () => switchTab(btn.dataset.tab))
   );
 
-  // ── Configure tab ───────────────────────────────────────────
   document.getElementById('btn-start-from-config')?.addEventListener('click', () => { switchTab('run'); guardedStartSearch(); });
   document.getElementById('btn-reset-config')?.addEventListener('click', () => {
-    document.getElementById('cfg-yr-from').value = '';
-    document.getElementById('cfg-yr-to').value = '';
+    ['cfg-yr-from','cfg-yr-to','cfg-extra','cfg-exclude'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     document.getElementById('cfg-max').value = '500';
-    document.getElementById('cfg-extra').value = '';
-    document.getElementById('cfg-exclude').value = '';
     SWDScope.loadPreset('general');
   });
 
-  // ── Discipline selector ─────────────────────────────────────
   document.getElementById('db-discipline-select')?.addEventListener('change', () => {
     SWDDiscipline.onDisciplineChange();
     const disc = document.getElementById('db-discipline-select').value;
-    if (SCOPE_PRESETS[disc]) {
-      SWDScope.loadPreset(disc);
-      const sel = document.getElementById('scope-preset-select');
-      if (sel) sel.value = '';
-    }
+    if (SCOPE_PRESETS[disc]) { SWDScope.loadPreset(disc); const sel = document.getElementById('scope-preset-select'); if (sel) sel.value = ''; }
   });
 
-  // ── Scope preset + add ──────────────────────────────────────
   document.getElementById('scope-preset-select')?.addEventListener('change', e => {
     if (e.target.value) { SWDScope.loadPreset(e.target.value); e.target.value = ''; }
   });
   const scopeAddInput = document.getElementById('scope-add-input');
-  document.getElementById('btn-add-scope')?.addEventListener('click', () => {
-    SWDScope.add(scopeAddInput?.value || ''); if (scopeAddInput) scopeAddInput.value = '';
-  });
-  scopeAddInput?.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); SWDScope.add(e.target.value); e.target.value = ''; }
-  });
+  document.getElementById('btn-add-scope')?.addEventListener('click', () => { SWDScope.add(scopeAddInput?.value || ''); if (scopeAddInput) scopeAddInput.value = ''; });
+  scopeAddInput?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); SWDScope.add(e.target.value); e.target.value = ''; } });
 
-  // ── Presets ─────────────────────────────────────────────────
   document.getElementById('btn-save-preset')?.addEventListener('click', savePreset);
   document.getElementById('btn-load-preset-file')?.addEventListener('click', loadPresetFile);
   document.getElementById('preset-file-input')?.addEventListener('change', handlePresetFile);
   document.getElementById('btn-load-preset-url')?.addEventListener('click', loadPresetFromUrl);
   document.getElementById('btn-load-bundled-preset')?.addEventListener('click', loadBundledPreset);
 
-  // ── Schema tab ───────────────────────────────────────────────
   document.getElementById('btn-add-custom-field')?.addEventListener('click', () => SWDSchema.addCustomField());
   document.getElementById('btn-add-slot')?.addEventListener('click', () => SWDSlots.add());
   document.getElementById('kw-modal-cancel')?.addEventListener('click', () => { document.getElementById('kw-modal').style.display = 'none'; });
   document.getElementById('kw-modal')?.addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.style.display = 'none'; });
 
-  // ── Requirements ────────────────────────────────────────────
   document.getElementById('btn-add-req')?.addEventListener('click', () => SWDReq.add());
   document.querySelectorAll('.req-suggestion-chip').forEach(chip => chip.addEventListener('click', () =>
     SWDReq.add(chip.dataset.type, chip.dataset.label, chip.dataset.value || '')
   ));
 
-  // ── Run tab ──────────────────────────────────────────────────
   document.getElementById('btn-run')?.addEventListener('click', guardedStartSearch);
   document.getElementById('btn-stop')?.addEventListener('click', () => { if (state.abortCtrl) state.abortCtrl.abort(); });
   document.getElementById('btn-add-term')?.addEventListener('click', addMidTerm);
@@ -163,17 +141,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const f = document.getElementById('mid-yr-from').value, t = document.getElementById('mid-yr-to').value;
     if (f) document.getElementById('cfg-yr-from').value = f;
     if (t) document.getElementById('cfg-yr-to').value = t;
-    logMsg(`Year range updated: ${f || '—'}–${t || '—'}`, 'warn');
+    logMsg(`Year range updated: ${f || '\u2014'}\u2013${t || '\u2014'}`, 'warn');
   });
   document.getElementById('btn-add-db')?.addEventListener('click', () => {
-    const db = document.getElementById('mid-db-select').value;
-    if (!db) return;
+    const db = document.getElementById('mid-db-select').value; if (!db) return;
     logMsg(`Database queued: ${DB_LABELS[db] || db}`, 'ok');
-    const el = document.querySelector(`input[value="${db}"]`);
-    if (el) el.checked = true;
+    const el = document.querySelector(`input[value="${db}"]`); if (el) el.checked = true;
   });
 
-  // ── Results tab ──────────────────────────────────────────────
   document.getElementById('res-search')?.addEventListener('input', renderTable);
   document.getElementById('res-verif')?.addEventListener('change', renderTable);
   document.getElementById('res-sort')?.addEventListener('change', renderTable);
@@ -193,26 +168,17 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTable();
   });
 
-  // ── Paywall tab ──────────────────────────────────────────────
   document.getElementById('paywall-search')?.addEventListener('input', renderPaywallPanel);
 
-  // ── Export tab ───────────────────────────────────────────────
   ['opt-abstract','opt-schema-fit','opt-term-rel'].forEach(id => {
-    document.getElementById(id)?.addEventListener('change', () => {
-      updateSizeWarning();
-      if (state.records.length) renderTable();
-    });
+    document.getElementById(id)?.addEventListener('change', () => { updateSizeWarning(); if (state.records.length) renderTable(); });
   });
 
-  // ── Missing sources ──────────────────────────────────────────
   document.getElementById('cfg-missing')?.addEventListener('input', renderMissingSources);
 
-  // ── Clear-selection confirm modal ────────────────────────────
   document.getElementById('clear-sel-confirm')?.addEventListener('click', () => {
     document.getElementById('clear-sel-modal')?.classList.remove('visible');
-    state.selection.clear();
-    renderSelectionBar();
-    startSearch();
+    state.selection.clear(); renderSelectionBar(); startSearch();
   });
   document.getElementById('clear-sel-cancel')?.addEventListener('click', () => {
     document.getElementById('clear-sel-modal')?.classList.remove('visible');
@@ -222,23 +188,18 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// ── Mid-run term injection ───────────────────────────────────────
 function addMidTerm() {
   const inp = document.getElementById('mid-term');
-  const t = inp.value.trim();
-  if (!t) return;
-  state.midTerms.push(t);
-  inp.value = '';
+  const t = inp.value.trim(); if (!t) return;
+  state.midTerms.push(t); inp.value = '';
   const chip = document.createElement('label');
-  chip.className = 'chip';
-  chip.style.cursor = 'pointer';
-  chip.innerHTML = `${esc(t)} <span style="opacity:.5;margin-left:4px">×</span>`;
+  chip.className = 'chip'; chip.style.cursor = 'pointer';
+  chip.innerHTML = `${esc(t)} <span style="opacity:.5;margin-left:4px">\u00d7</span>`;
   chip.addEventListener('click', () => { state.midTerms = state.midTerms.filter(x => x !== t); chip.remove(); });
   document.getElementById('mid-term-list').appendChild(chip);
   logMsg(`Added term: "${t}"`);
 }
 
-// ── Clear-selection guard ────────────────────────────────────────
 function guardedStartSearch() {
   if (state.isRunning) return;
   if (state.selection.size > 0) {
@@ -251,7 +212,6 @@ function guardedStartSearch() {
   startSearch();
 }
 
-// ── Main search loop ─────────────────────────────────────────────
 async function startSearch() {
   if (state.isRunning) return;
   state.isRunning = true;
@@ -262,11 +222,11 @@ async function startSearch() {
   resetSeen();
   resetEngineCache();
   clearSearchLog();
-  clearScreening();
+  // Screening now stored on record objects — cleared automatically when records are replaced
   state.stats = { queries: 0, raw: 0, dedup: 0, records: 0, noloc: 0, errors: 0, skipped: 0 };
   Object.keys(state.catCounts).forEach(k => state.catCounts[k] = 0);
   document.getElementById('log-box').innerHTML = '';
-  setProgress(0, 'Initialising…');
+  setProgress(0, 'Initialising\u2026');
   setStatus('running', 'Running');
   document.getElementById('btn-run').disabled = true;
   document.getElementById('btn-stop').disabled = false;
@@ -291,9 +251,9 @@ async function startSearch() {
   const total = (searchDBs.length * allTerms.length) + occDBs.length;
   let done = 0;
 
-  logMsg(`Search started — ${searchDBs.length} search DBs × ${allTerms.length} terms + ${occDBs.length} occurrence DBs`);
+  logMsg(`Search started \u2014 ${searchDBs.length} search DBs \u00d7 ${allTerms.length} terms + ${occDBs.length} occurrence DBs`);
   if (stubDBs.length) logMsg(`Stubs (not yet wired): ${stubDBs.map(d => DB_LABELS[d] || d).join(', ')}`, 'warn');
-  if (s.yearFrom || s.yearTo) logMsg(`Year range: ${s.yearFrom || 'open'}–${s.yearTo || 'open'}`);
+  if (s.yearFrom || s.yearTo) logMsg(`Year range: ${s.yearFrom || 'open'}\u2013${s.yearTo || 'open'}`);
 
   async function processResults(db, term, hits) {
     state.stats.raw += hits.length;
@@ -301,6 +261,9 @@ async function startSearch() {
     for (const h of hits) {
       for (const r of processHit(h)) {
         if (isDuplicate(r)) { dupes++; continue; }
+        // Initialise screening fields on the record itself
+        r._screen_decision = '';
+        r._screen_reason   = '';
         state.records.push(r);
         n++; state.stats.dedup++;
         if (r.category === 'E') state.stats.noloc++;
@@ -314,12 +277,12 @@ async function startSearch() {
   for (const db of occDBs) {
     if (signal.aborted) break;
     const label = DB_LABELS[db] || db;
-    logMsg(`Fetching ${label}…`); state.stats.queries++;
+    logMsg(`Fetching ${label}\u2026`); state.stats.queries++;
     try {
       const hits = await engineQuery(db, '', s, signal);
-      if (hits === null) { logMsg(`  ⚠ ${label} unreachable`, 'warn'); state.stats.skipped++; }
-      else { const { n, dupes } = await processResults(db, '', hits); logMsg(`  → ${hits.length} occurrences · ${n} new`, hits.length ? 'ok' : 'warn'); }
-    } catch (e) { if (e.name === 'AbortError') break; state.stats.errors++; logMsg(`  ✖ ${label}: ${e.message}`, 'err'); }
+      if (hits === null) { logMsg(`  \u26a0 ${label} unreachable`, 'warn'); state.stats.skipped++; }
+      else { const { n } = await processResults(db, '', hits); logMsg(`  \u2192 ${hits.length} occurrences \u00b7 ${n} new`, hits.length ? 'ok' : 'warn'); }
+    } catch (e) { if (e.name === 'AbortError') break; state.stats.errors++; logMsg(`  \u2716 ${label}: ${e.message}`, 'err'); }
     updateStats(); done++; setProgress((done / total) * 100, label);
   }
 
@@ -328,21 +291,20 @@ async function startSearch() {
     const label = DB_LABELS[db] || db;
     for (const term of allTerms) {
       if (signal.aborted) break;
-      logMsg(`${label} ← "${term.slice(0, 55)}${term.length > 55 ? '…' : ''}"`); state.stats.queries++; updateStats();
+      logMsg(`${label} \u2190 "${term.slice(0, 55)}${term.length > 55 ? '\u2026' : ''}"`); state.stats.queries++; updateStats();
       try {
         const hits = await engineQuery(db, term, s, signal);
-        if (hits === null) { logMsg(`  ⚠ ${label} unreachable — skipped`, 'warn'); state.stats.skipped++; }
+        if (hits === null) { logMsg(`  \u26a0 ${label} unreachable \u2014 skipped`, 'warn'); state.stats.skipped++; }
         else {
           const { n, dupes } = await processResults(db, term, hits);
-          if (hits.length === 0) logMsg(`  → 0 results`, 'warn');
-          else logMsg(`  → ${hits.length} hits · ${n} new · ${dupes} dupes`, 'ok');
+          if (hits.length === 0) logMsg(`  \u2192 0 results`, 'warn');
+          else logMsg(`  \u2192 ${hits.length} hits \u00b7 ${n} new \u00b7 ${dupes} dupes`, 'ok');
         }
-      } catch (e) { if (e.name === 'AbortError') break; state.stats.errors++; logMsg(`  ✖ ${label}: ${e.message}`, 'err'); }
-      updateStats(); done++; setProgress((done / total) * 100, `${label} · "${term.slice(0, 28)}"`);
+      } catch (e) { if (e.name === 'AbortError') break; state.stats.errors++; logMsg(`  \u2716 ${label}: ${e.message}`, 'err'); }
+      updateStats(); done++; setProgress((done / total) * 100, `${label} \u00b7 "${term.slice(0, 28)}"`);
     }
   }
 
-  // Post-search: apply requirements, slots
   applyRequirements(state.records);
   applySlots(state.records);
   SWDSlots.renderExportPanel();
@@ -351,7 +313,10 @@ async function startSearch() {
   const stopped = signal.aborted;
   setProgress(stopped ? null : 100, stopped ? 'Stopped' : 'Complete');
   setStatus(stopped ? 'stopped' : 'done', stopped ? 'Stopped' : 'Done');
-  logMsg(stopped ? `Stopped. ${state.records.length} records.` : `Complete — ${state.records.length} records · ${state.stats.errors} errors · ${state.stats.skipped} skipped`, stopped ? 'warn' : 'ok');
+  logMsg(stopped
+    ? `Stopped. ${state.records.length} records.`
+    : `Complete \u2014 ${state.records.length} records \u00b7 ${state.stats.errors} errors \u00b7 ${state.stats.skipped} skipped`,
+    stopped ? 'warn' : 'ok');
   state.isRunning = false;
   document.getElementById('btn-run').disabled = false;
   document.getElementById('btn-stop').disabled = true;
@@ -360,7 +325,8 @@ async function startSearch() {
   badge.textContent = state.records.length; badge.hidden = !state.records.length;
   const pwBadge = document.getElementById('badge-paywall');
   if (pwBadge) {
-    const n = state.records.filter(r => r.doi && r.doi !== 'not reported' && (r.pdf_available === 'paywalled' || r.pdf_available === 'no' || r.pdf_available === 'unknown')).length;
+    const n = state.records.filter(r => r.doi && r.doi !== 'not reported' &&
+      (r.pdf_available === 'paywalled' || r.pdf_available === 'no' || r.pdf_available === 'unknown')).length;
     pwBadge.textContent = n; pwBadge.hidden = !n;
   }
   renderTable(); renderPaywallPanel(); renderScreeningCounts();
