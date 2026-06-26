@@ -1616,4 +1616,190 @@ if(typeof renderTable === 'function'){
   try { renderTable = _patchedRT; } catch(e){}
 }
 
+// ─── REPLACE the last line "}); // end DOMContentLoaded" with everything below ───
+
+// ═══════════════════════════════════════════════════════════════
+// PHASE 7b — GENERAL DISCIPLINE: SHOW ALL DATABASES
+// ═══════════════════════════════════════════════════════════════
+// Patch DISCIPLINE_DB_MAP.general to include ALL databases from all disciplines
+// Remove ResearchGate entirely from every discipline
+(function patchGeneralDisc(){
+  if(!window.DISCIPLINE_DB_MAP) return;
+
+  // Collect every unique DB across all disciplines (except researchgate)
+  const allDBs = new Map();
+  Object.values(window.DISCIPLINE_DB_MAP).forEach(disc => {
+    (disc.available || []).forEach(db => {
+      if(db.id !== 'researchgate' && !allDBs.has(db.id)) allDBs.set(db.id, db);
+    });
+  });
+
+  // Core live DBs that should be on by default in General
+  const coreOn = ['semanticscholar','openalex','europepmc','crossref','zenodo','gbif','inat','arxiv','biorxiv','pubmed'];
+
+  window.DISCIPLINE_DB_MAP.general = {
+    label: 'General / All disciplines',
+    defaultOn: coreOn,
+    available: [...allDBs.values()],
+  };
+
+  // Remove researchgate from every other discipline too
+  Object.values(window.DISCIPLINE_DB_MAP).forEach(disc => {
+    disc.available = (disc.available||[]).filter(db => db.id !== 'researchgate');
+    disc.defaultOn = (disc.defaultOn||[]).filter(id => id !== 'researchgate');
+  });
+
+  // Hide the ResearchGate note (no longer needed since it's gone entirely)
+  const rgNote = document.getElementById('db-resgate-note');
+  if(rgNote) rgNote.style.display = 'none';
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// PHASE 7b — CONTENT SCOPE: PRESET DROPDOWN + FREE ADD
+// ═══════════════════════════════════════════════════════════════
+
+const SCOPE_PRESETS = {
+  general:     ['field study','monitoring','first record','distribution survey','review','meta-analysis',
+                'modelling','grey literature','thesis','conference paper','observational study'],
+  biology:     ['field study','trapping','specimen collection','DNA barcoding','first record',
+                'host plant survey','lab colony origin','monitoring','review','meta-analysis','morphological identification'],
+  ecology:     ['field survey','monitoring','occurrence data','distribution mapping','species inventory',
+                'population study','habitat assessment','review','modelling','citizen science','abundance estimate'],
+  medicine:    ['randomised controlled trial','systematic review','clinical trial','cohort study',
+                'case-control study','meta-analysis','observational study','case report','in vitro','in vivo','cross-sectional study'],
+  physics:     ['experimental study','theoretical analysis','simulation','observational astronomy',
+                'telescope survey','particle physics','quantum mechanics','review','conference proceedings','numerical modelling'],
+  mathematics: ['theorem','proof','algorithm','numerical analysis','statistical method',
+                'computational model','survey paper','applied mathematics','pure mathematics','combinatorics'],
+  cs:          ['algorithm','machine learning','deep learning','software engineering','benchmark',
+                'experimental evaluation','system design','review','preprint','neural network','dataset'],
+  chemistry:   ['synthesis','spectroscopy','crystallography','reaction study','computational chemistry',
+                'materials characterisation','in vitro','review','quantum chemistry','catalysis'],
+  social:      ['qualitative study','quantitative survey','ethnography','discourse analysis',
+                'systematic review','historical analysis','policy analysis','case study','interview study','mixed methods'],
+  economics:   ['empirical study','econometric analysis','experimental economics','policy evaluation',
+                'working paper','systematic review','case study','modelling','regression analysis','field experiment'],
+  geosciences: ['field survey','geophysical measurement','remote sensing','climate model',
+                'palaeoclimatology','geochemistry','stratigraphy','review','satellite data','sediment core'],
+};
+
+// Active scope terms (Set of strings)
+let _scopeTerms = new Set();
+
+function renderScopeChips(){
+  const container = document.getElementById('scope-chips');
+  if(!container) return;
+  if(!_scopeTerms.size){
+    container.innerHTML = '<span class="scope-empty">No scope terms yet — select a preset or add your own.</span>';
+    _syncScopeToLegacy();
+    return;
+  }
+  container.innerHTML = [..._scopeTerms].map(t =>
+    `<span class="scope-chip">${esc(t)}<button class="scope-chip-remove" onclick="SWDScope.remove(${JSON.stringify(t)})" title="Remove">&times;</button></span>`
+  ).join('');
+  _syncScopeToLegacy();
+}
+
+function _syncScopeToLegacy(){
+  // Keep hidden #chips-scope populated so getSettings() still returns a scope array
+  const hidden = document.getElementById('chips-scope');
+  if(!hidden) return;
+  hidden.innerHTML = [..._scopeTerms].map(t =>
+    `<label><input type="checkbox" value="${esc(t)}" checked /></label>`
+  ).join('');
+}
+
+window.SWDScope = {
+  loadPreset(key){
+    const terms = SCOPE_PRESETS[key] || SCOPE_PRESETS.general;
+    // Detect if there are custom terms (not in any preset)
+    const allPresetTerms = new Set(Object.values(SCOPE_PRESETS).flat());
+    const customTerms = [..._scopeTerms].filter(t => !allPresetTerms.has(t));
+    if(customTerms.length > 0){
+      if(!confirm(`Loading a new preset will replace ${customTerms.length} custom scope term(s):\n\n• ${customTerms.join('\n• ')}\n\nContinue?`)) return;
+    }
+    _scopeTerms = new Set(terms);
+    renderScopeChips();
+  },
+  add(term){
+    const t = (term||'').trim();
+    if(!t) return;
+    _scopeTerms.add(t);
+    renderScopeChips();
+  },
+  remove(term){
+    _scopeTerms.delete(term);
+    renderScopeChips();
+  },
+  clear(){
+    _scopeTerms.clear();
+    renderScopeChips();
+  },
+  getTerms(){ return [..._scopeTerms]; },
+  restore(arr){
+    if(Array.isArray(arr)){
+      _scopeTerms = new Set(arr);
+      renderScopeChips();
+    }
+  },
+};
+
+// Wire the preset dropdown
+const scopePresetSel = document.getElementById('scope-preset-select');
+if(scopePresetSel){
+  scopePresetSel.addEventListener('change', (e) => {
+    if(e.target.value){
+      window.SWDScope.loadPreset(e.target.value);
+      e.target.value = ''; // reset to placeholder after loading
+    }
+  });
+}
+
+// Wire the free-add input + button
+const scopeAddInput = document.getElementById('scope-add-input');
+const scopeAddBtn   = document.getElementById('btn-add-scope');
+if(scopeAddBtn) scopeAddBtn.addEventListener('click', () => {
+  window.SWDScope.add(scopeAddInput?.value || '');
+  if(scopeAddInput) scopeAddInput.value = '';
+});
+if(scopeAddInput) scopeAddInput.addEventListener('keydown', e => {
+  if(e.key === 'Enter'){ e.preventDefault(); window.SWDScope.add(e.target.value); e.target.value = ''; }
+});
+
+// Sync scope preset when discipline changes
+// Patch SWDDiscipline.onDisciplineChange to also update scope
+if(window.SWDDiscipline){
+  const _origDisciplineChange = window.SWDDiscipline.onDisciplineChange.bind(window.SWDDiscipline);
+  window.SWDDiscipline.onDisciplineChange = function(){
+    _origDisciplineChange();
+    const disc = document.getElementById('db-discipline-select')?.value || 'general';
+    // Only load if the preset key matches a known scope preset
+    if(SCOPE_PRESETS[disc]){
+      window.SWDScope.loadPreset(disc);
+      // Reset the scope preset dropdown label
+      const sel = document.getElementById('scope-preset-select');
+      if(sel) sel.value = '';
+    }
+  };
+}
+
+// Patch preset serialization to include scope terms
+const _origSerialize7b = serializePreset;
+serializePreset = function(name){
+  const base = _origSerialize7b(name);
+  base.scopeTerms = window.SWDScope.getTerms();
+  return base;
+};
+
+const _origApply7b = applyPreset;
+applyPreset = function(data){
+  _origApply7b(data);
+  if(Array.isArray(data.scopeTerms)){
+    window.SWDScope.restore(data.scopeTerms);
+  }
+};
+
+// Initialise with general preset on page load
+window.SWDScope.loadPreset('general');
+
 }); // end DOMContentLoaded
