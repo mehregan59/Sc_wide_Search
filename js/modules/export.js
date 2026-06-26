@@ -1,0 +1,227 @@
+// ═══════════════════════════════════════════════════════════════
+// EXPORT.JS — all download functions
+// ═══════════════════════════════════════════════════════════════
+import { esc, dlFile, stamp, lines, checked, getScreening, state, searchLog, DB_LABELS } from './state.js';
+import { getActiveSchema, LIVE_SCHEMA, customFields } from './schema.js';
+import { scoreSchemaFit, scoreTermRelevance, getExportOptions } from './scores.js';
+
+function getPaywalled() {
+  return state.records.filter(r => r.doi && r.doi !== 'not reported' && (r.pdf_available === 'paywalled' || r.pdf_available === 'no' || r.pdf_available === 'unknown'));
+}
+
+export function exportCSV(cat) {
+  const opts = getExportOptions();
+  const data = state.records.filter(r => cat === 'all' || r.category === cat);
+  if (!data.length) { alert('No records. Run a search first.'); return; }
+  const active = getActiveSchema();
+  const extraH = [];
+  if (opts.includeSchemaFit) extraH.push('Schema fit %');
+  if (opts.includeTermRelevance) extraH.push('Term relevance %');
+  if (opts.includeAbstract) extraH.push('Abstract');
+  const headers = [...active.map(s => s.label || s.field), ...extraH];
+  const rows = data.map(r => {
+    const sc = getScreening(r);
+    const full = { ...r, screening_decision: sc.decision, screening_reason: sc.reason };
+    const base = active.map(s => `"${String(full[s.field] || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`);
+    const extra = [];
+    if (opts.includeSchemaFit) extra.push(`"${scoreSchemaFit(r)}"`);
+    if (opts.includeTermRelevance) extra.push(`"${scoreTermRelevance(r)}"`);
+    if (opts.includeAbstract) extra.push(`"${(r._abstract || '[No abstract available]').replace(/"/g, '""').replace(/\n/g, ' ')}"`);
+    return [...base, ...extra].join(',');
+  });
+  dlFile([headers.join(','), ...rows].join('\r\n'), `sciwide_records${cat !== 'all' ? '_cat' + cat : ''}_${stamp()}.csv`, 'text/csv;charset=utf-8;');
+}
+
+export function exportJSON() {
+  if (!state.records.length) { alert('No records.'); return; }
+  const out = state.records.map(r => { const sc = getScreening(r); return { ...r, screening_decision: sc.decision, screening_reason: sc.reason, abstract: r._abstract || null, schema_fit_pct: scoreSchemaFit(r), term_relevance_pct: scoreTermRelevance(r) }; });
+  dlFile(JSON.stringify(out, null, 2), `sciwide_records_${stamp()}.json`, 'application/json');
+}
+
+export function exportBibtex() {
+  const data = state.records.filter(r => r.doi && r.doi !== 'not reported');
+  if (!data.length) { alert('No records with DOIs.'); return; }
+  const entries = data.map((r, i) => {
+    const key = `record${r.pub_year || 'nd'}_${i + 1}`;
+    const au = (r.full_citation || '').split('(')[0].trim().replace(/,\s*$/, '');
+    const m = (r.full_citation || '').match(/\)\.\s+(.+?)\.\s+DOI:/);
+    return `@article{${key},\n  author={${au}},\n  year={${r.pub_year || ''}},\n  title={${m ? m[1] : 'Study'}},\n  doi={${r.doi}}\n}`;
+  });
+  dlFile(entries.join('\n\n'), `sciwide_${stamp()}.bib`, 'text/plain;charset=utf-8;');
+}
+
+export function exportRIS() {
+  if (!state.records.length) { alert('No records.'); return; }
+  const ris = state.records.map(r => {
+    const au = (r.full_citation || '').split('(')[0].trim().split(';').map(a => a.trim()).filter(Boolean);
+    const m = (r.full_citation || '').match(/\)\.\s+(.+?)\.\s+DOI:/);
+    const title = m ? m[1].trim() : (r.full_citation || '').slice(0, 120);
+    const sc = getScreening(r);
+    const ln = ['TY  - JOUR'];
+    au.forEach(a => ln.push(`AU  - ${a}`));
+    ln.push(`PY  - ${r.pub_year || ''}`, `TI  - ${title}`);
+    if (r.doi && r.doi !== 'not reported') ln.push(`DO  - ${r.doi}`);
+    if (r.url && r.url !== 'not reported') ln.push(`UR  - ${r.url}`);
+    if (r.country && r.country !== 'not reported') ln.push(`CY  - ${r.country}`);
+    ln.push(`N1  - Cat: ${r.category} | Verif: ${r.verification_status} | DB: ${r.source_db}`);
+    if (r.notes) ln.push(`N2  - ${r.notes}`);
+    if (sc.decision) ln.push(`KW  - screening:${sc.decision}`);
+    if (sc.reason) ln.push(`KW  - reason:${sc.reason}`);
+    ln.push('ER  - ');
+    return ln.join('\r\n');
+  });
+  dlFile(ris.join('\r\n\r\n'), `sciwide_${stamp()}.ris`, 'application/x-research-info-systems;charset=utf-8;');
+}
+
+export function exportEndNoteXML() {
+  if (!state.records.length) { alert('No records.'); return; }
+  function x(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  const records = state.records.map((r, i) => {
+    const au = (r.full_citation || '').split('(')[0].trim().split(';').map(a => a.trim()).filter(Boolean);
+    const m = (r.full_citation || '').match(/\)\.\s+(.+?)\.\s+DOI:/);
+    const title = m ? m[1].trim() : (r.full_citation || '').slice(0, 200);
+    const sc = getScreening(r);
+    const auXml = au.map(a => `<author>${x(a)}</author>`).join('');
+    return `  <record>\n    <ref-type name="Journal Article">17</ref-type>\n    <contributors><authors>${auXml}</authors></contributors>\n    <titles><title>${x(title)}</title></titles>\n    <dates><year>${x(String(r.pub_year || ''))}</year></dates>\n    <place-published>${x(r.country || '')}</place-published>\n    <isbn>${x(r.doi && r.doi !== 'not reported' ? r.doi : '')}</isbn>\n    <urls><related-urls><url>${x(r.url && r.url !== 'not reported' ? r.url : '')}</url></related-urls></urls>\n    <electronic-resource-num>${x(r.doi && r.doi !== 'not reported' ? r.doi : '')}</electronic-resource-num>\n    <abstract>${x(r.excerpt && r.excerpt !== 'not reported' ? r.excerpt : '')}</abstract>\n    <notes>${x(`Cat: ${r.category} | DB: ${r.source_db}${sc.decision ? ' | Screen: ' + sc.decision : ''}`)}</notes>\n    <keywords>${sc.decision ? `<keyword>screening:${x(sc.decision)}</keyword>` : ''}</keywords>\n    <language>${x(r.language || 'en')}</language>\n  </record>`;
+  }).join('\n');
+  dlFile(`<?xml version="1.0" encoding="UTF-8"?>\n<xml><records>\n${records}\n</records></xml>`, `sciwide_${stamp()}.xml`, 'application/xml;charset=utf-8;');
+}
+
+export function exportGeoJSON() {
+  const data = state.records.filter(r => r.coordinates && r.coordinates !== 'not reported');
+  if (!data.length) { alert('No records with coordinates.'); return; }
+  const active = getActiveSchema();
+  const features = data.map(r => {
+    const [lat, lon] = r.coordinates.split(',').map(s => parseFloat(s.trim()));
+    const props = {}; active.forEach(s => props[s.label || s.field] = r[s.field] || '');
+    return { type: 'Feature', geometry: { type: 'Point', coordinates: [lon, lat] }, properties: props };
+  });
+  dlFile(JSON.stringify({ type: 'FeatureCollection', features }, null, 2), `sciwide_geo_${stamp()}.geojson`, 'application/json');
+}
+
+export function exportSchema() {
+  dlFile(JSON.stringify([...LIVE_SCHEMA, ...customFields], null, 2), `sciwide_schema_${stamp()}.json`, 'application/json');
+}
+
+export function exportMissing() {
+  const items = lines('cfg-missing');
+  if (!items.length) { alert('No known-gap sources listed yet.'); return; }
+  dlFile(['Known gaps / hard-to-access sources', '═'.repeat(56), 'Generated: ' + new Date().toISOString(), '', ...items.map((s, i) => `${i + 1}. ${s}`)].join('\n'), `missing_sources_${stamp()}.txt`, 'text/plain;charset=utf-8;');
+}
+
+export function exportSearchLog() {
+  if (!searchLog.length) { alert('No search log yet. Run a search first.'); return; }
+  const s = state.lastSettings || {};
+  const terms = [...(s.primaryTerms || []), ...(s.synonymTerms || []), ...(s.extraTerms || [])];
+  const dbs = [...new Set(searchLog.map(l => l.db))];
+  const inc = state.records.filter(r => getScreening(r).decision === 'include').length;
+  const exc = state.records.filter(r => getScreening(r).decision === 'exclude').length;
+  const maybe = state.records.filter(r => getScreening(r).decision === 'maybe').length;
+  const un = state.records.filter(r => !getScreening(r).decision).length;
+  const hdr = [
+    'SciWide Search — PRISMA-style Search Report', '═'.repeat(60),
+    `Generated: ${new Date().toISOString()}`, '',
+    '── SEARCH STRATEGY ───────────────────────────────────────────',
+    `Primary terms (${terms.length}):`, ...terms.map(t => `  • ${t}`), '',
+    `Databases searched (${dbs.length}):`, ...dbs.map(d => `  • ${DB_LABELS[d] || d}`), '',
+    `Year range: ${s.yearFrom || '(all)'} – ${s.yearTo || '(all)'}`,
+    `Total queries: ${searchLog.length}`,
+    `Total raw hits: ${searchLog.reduce((a, l) => a + l.hits, 0)}`,
+    `After deduplication: ${searchLog.reduce((a, l) => a + (l.new || 0), 0)}`,
+    `Records in session: ${state.records.length}`, '',
+    '── SCREENING SUMMARY ─────────────────────────────────────────',
+    `Included: ${inc}  Excluded: ${exc}  Maybe: ${maybe}  Unscreened: ${un}`, '',
+    '── QUERY-BY-QUERY LOG ─────────────────────────────────────────',
+    'Timestamp                | Database                      | Term                          | Hits | New | Dupes',
+    '─'.repeat(105),
+  ];
+  const rows = searchLog.map(l =>
+    `${l.ts.replace('T', ' ').slice(0, 19)} | ${(DB_LABELS[l.db] || l.db).padEnd(29)} | ${(l.term || '(occurrence)').slice(0, 29).padEnd(29)} | ${String(l.hits).padStart(4)} | ${String(l.new || 0).padStart(3)} | ${String(l.dupes || 0).padStart(5)}`
+  );
+  dlFile([...hdr, ...rows].join('\n'), `sciwide_search_log_${stamp()}.txt`, 'text/plain;charset=utf-8;');
+}
+
+export function exportScreened(decision) {
+  const data = state.records.filter(r => getScreening(r).decision === decision);
+  if (!data.length) { alert(`No records marked as "${decision}" yet.`); return; }
+  const active = getActiveSchema();
+  const headers = [...active.map(s => s.label || s.field), 'Screening', 'Reason'];
+  const rows = data.map(r => { const sc = getScreening(r); return [...active.map(s => `"${String(r[s.field] || '').replace(/"/g, '""')}"`), `"${sc.decision}"`, `"${sc.reason.replace(/"/g, '""')}"`].join(','); });
+  dlFile([headers.join(','), ...rows].join('\r\n'), `sciwide_${decision}_${stamp()}.csv`, 'text/csv;charset=utf-8;');
+}
+
+export function exportMarkdown() {
+  if (!state.records.length) { alert('No records.'); return; }
+  const s = state.lastSettings || {};
+  const terms = [...(s.primaryTerms || []), ...(s.synonymTerms || []), ...(s.extraTerms || [])];
+  const inc = state.records.filter(r => getScreening(r).decision === 'include').length;
+  const exc = state.records.filter(r => getScreening(r).decision === 'exclude').length;
+  const catMap = { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 };
+  state.records.forEach(r => { if (catMap[r.category] !== undefined) catMap[r.category]++; });
+  const countryMap = {};
+  state.records.forEach(r => { if (r.country && r.country !== 'not reported') countryMap[r.country] = (countryMap[r.country] || 0) + 1; });
+  const topC = Object.entries(countryMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const dbs = [...new Set(state.records.map(r => r.source_db).filter(Boolean))];
+  const out = [
+    `# SciWide Search — Session Summary`, ``,
+    `**Generated:** ${new Date().toISOString()}  `,
+    `**Citation:** Ebrahimi, M. (2026). *SciWide Search* [Software]. https://github.com/mehregan59/Sc_wide_Search`, ``,
+    `## Search strategy`, ``,
+    terms.length ? `**Terms:** ${terms.map(t => `\`${t}\``).join(', ')}` : '*No terms recorded.*', ``,
+    `**Year range:** ${s.yearFrom || '(all)'} – ${s.yearTo || '(all)'}`, ``,
+    `**Databases:** ${dbs.join(', ') || '(none recorded)'}`, ``,
+    `## Records overview`, ``,
+    `| Metric | Count |`, `|---|---|`,
+    `| Total records | ${state.records.length} |`, `| Included | ${inc} |`, `| Excluded | ${exc} |`, ``,
+    `## Category breakdown`, ``,
+    `| Category | Label | Count |`, `|---|---|---|`,
+    `| A | Primary location records | ${catMap.A} |`, `| B | Useful sampling locations | ${catMap.B} |`,
+    `| C | Lab / strain origin | ${catMap.C} |`, `| D | Modelling / review | ${catMap.D} |`,
+    `| E | No usable location | ${catMap.E} |`, `| F | Pre-1980 records | ${catMap.F} |`, ``,
+    `## Top countries`, ``, `| Country | Records |`, `|---|---|`,
+    ...topC.map(([c, n]) => `| ${c} | ${n} |`), ``,
+    `## Included records`, ``,
+  ];
+  const incData = state.records.filter(r => getScreening(r).decision === 'include');
+  if (incData.length) {
+    out.push(`| # | Authors | Year | Country | DOI |`, `|---|---|---|---|---|`);
+    incData.forEach((r, i) => { const au = (r.full_citation || '').split('(')[0].trim().slice(0, 60); const doi = r.doi && r.doi !== 'not reported' ? `[${r.doi}](https://doi.org/${r.doi})` : '—'; out.push(`| ${i + 1} | ${au} | ${r.pub_year || '—'} | ${r.country || '—'} | ${doi} |`); });
+  } else { out.push('*No records marked as included yet.*'); }
+  out.push('');
+  dlFile(out.join('\n'), `sciwide_summary_${stamp()}.md`, 'text/markdown;charset=utf-8;');
+}
+
+export function exportPaywallTxt() {
+  const data = getPaywalled();
+  if (!data.length) { alert('No paywalled records.'); return; }
+  dlFile(['Paywalled papers — DOI list', '═'.repeat(40), `Generated: ${new Date().toISOString()}`, `Total: ${data.length}`, '', ...data.map((r, i) => `[${i + 1}] DOI: ${r.doi}\n    Authors: ${(r.full_citation || '').split('(')[0].trim().slice(0, 100)}\n    Year: ${r.pub_year || 'n.d.'} | Category: ${r.category}\n    Unpaywall: https://unpaywall.org/${r.doi}\n`)].join('\n'), `paywalled_dois_${stamp()}.txt`, 'text/plain;charset=utf-8;');
+}
+
+export function exportPaywallCsv() {
+  const data = getPaywalled();
+  if (!data.length) { alert('No paywalled records.'); return; }
+  const rows = data.map(r => [`"${r.doi}"`, `"${r.pub_year || ''}"`, `"${(r.full_citation || '').split('(')[0].trim().slice(0, 120).replace(/"/g, '""')}"`, `"${r.country}"`, `"${r.category}"`, `"https://doi.org/${r.doi}"`, `"https://unpaywall.org/${r.doi}"`].join(','));
+  dlFile(['doi,pub_year,authors,country,category,doi_url,unpaywall_url', ...rows].join('\r\n'), `paywalled_dois_${stamp()}.csv`, 'text/csv;charset=utf-8;');
+}
+
+export function exportDelimited() {
+  if (!state.records.length) { alert('No records.'); return; }
+  const delimRaw = document.getElementById('custom-delim')?.value || 'tab';
+  const delim = delimRaw === 'tab' ? '\t' : delimRaw === 'semicolon' ? ';' : delimRaw === 'pipe' ? '|' : ',';
+  const doQuote = document.getElementById('custom-quote')?.value !== 'none';
+  const includeHeader = document.getElementById('custom-header')?.value !== 'no';
+  const active = getActiveSchema();
+  function cell(v) { const s = String(v || '').replace(/\n/g, ' '); return doQuote ? '"' + s.replace(/"/g, '""') + '"' : s.replace(new RegExp('\\' + delim, 'g'), ' '); }
+  const rows = state.records.map(r => { const sc = getScreening(r); const full = { ...r, screening_decision: sc.decision, screening_reason: sc.reason }; return active.map(s => cell(full[s.field] || '')).join(delim); });
+  const header = active.map(s => cell(s.label || s.field)).join(delim);
+  const ext = delim === '\t' ? 'tsv' : 'csv';
+  dlFile([...(includeHeader ? [header] : []), ...rows].join('\r\n'), `sciwide_records_${stamp()}.${ext}`, 'text/plain;charset=utf-8;');
+}
+
+export const SWDExportFn = {
+  csv: exportCSV, delimited: exportDelimited, json: exportJSON, bibtex: exportBibtex,
+  ris: exportRIS, endnotexml: exportEndNoteXML, markdown: exportMarkdown,
+  geojson: exportGeoJSON, missing: exportMissing, schema: exportSchema,
+  searchLog: exportSearchLog, screened: exportScreened,
+  paywallTxt: exportPaywallTxt, paywallCsv: exportPaywallCsv,
+};
