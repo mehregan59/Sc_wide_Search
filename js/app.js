@@ -26,10 +26,21 @@ window.SWDSelection = SWDSelection;
 window.SWDExportFn = SWDExportFn;
 window._renderTable = renderTable; // used by selection.js
 
-// Wrap every export fn with scope check
+// Wrap export fns with scope check.
+// Screening-based exports (screened, searchLog, markdown, missing, schema)
+// always operate on ALL records — they're already self-filtered by screening
+// decision or session metadata, so the scope modal would only break them.
 (function wrapExports() {
+  // These bypass the scope modal entirely — always use all records
+  const NO_SCOPE = new Set(['screened', 'searchLog', 'markdown', 'missing', 'schema']);
   const orig = { ...SWDExportFn };
-  Object.keys(orig).forEach(k => { SWDExportFn[k] = (...args) => withScopeCheck(orig[k], args); });
+  Object.keys(orig).forEach(k => {
+    if (NO_SCOPE.has(k)) {
+      SWDExportFn[k] = (...args) => orig[k](...args);
+    } else {
+      SWDExportFn[k] = (...args) => withScopeCheck(orig[k], args);
+    }
+  });
   const origSlotExport = SWDSlots.exportSlot.bind(SWDSlots);
   const origSlotAll = SWDSlots.exportAll.bind(SWDSlots);
   SWDSlots.exportSlot = id => withScopeCheck(origSlotExport, [id]);
