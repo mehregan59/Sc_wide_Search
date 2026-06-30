@@ -17,6 +17,8 @@
     .screen-cell{min-width:110px;padding:6px 8px!important}.screen-btns{display:flex;gap:4px;margin-bottom:4px}.screen-btn{width:28px;height:24px;border:1px solid var(--border);border-radius:var(--radius);background:var(--paper);cursor:pointer;font-size:13px;line-height:1;transition:all .1s}.screen-btn:hover{border-color:var(--accent)}.screen-btn.active-include{background:#d4edda;border-color:#28a745;color:#155724}.screen-btn.active-maybe{background:#fff3cd;border-color:#ffc107;color:#856404}.screen-btn.active-exclude{background:#f8d7da;border-color:#dc3545;color:#721c24}.screen-reason-input{width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:var(--radius);background:var(--paper);color:var(--ink-3)}.screen-badge{display:inline-block;font-size:10px;padding:1px 6px;border-radius:8px;font-weight:600;white-space:nowrap}.screen-badge.include{background:#d4edda;color:#155724}.screen-badge.exclude{background:#f8d7da;color:#721c24}.screen-badge.maybe{background:#fff3cd;color:#856404}.screen-badge.unscreened{background:var(--paper);color:var(--ink-3);border:1px solid var(--border)}.row-include{background:#f8fff9}.row-exclude{background:#fff8f8;opacity:.75}.row-maybe{background:#fffef0}#screening-counts{display:flex;gap:8px;flex-wrap:wrap;padding:.5rem 0;font-size:12px;align-items:center}
     .donate-card{background:#f0edf7;border:1px solid #b8a8d8;border-radius:var(--radius-lg);padding:1.5rem;margin-bottom:1.5rem}.donate-card h2{font-size:15px;font-weight:700;color:#4b3268;margin-bottom:.5rem}.donate-card p{font-size:13.5px;color:var(--ink-2);line-height:1.75;margin-bottom:1rem}.donate-btn{display:inline-block;background:#4b3268;color:#f5c430;font-weight:700;font-size:14px;padding:.6rem 1.5rem;border-radius:var(--radius-lg);text-decoration:none;letter-spacing:.03em;transition:background .15s}.donate-btn:hover{background:#3d2856}.citation-box{font-family:var(--mono);font-size:12.5px;background:var(--paper);border:1px solid var(--border);border-radius:var(--radius);padding:.75rem 1rem;color:var(--ink-2);line-height:1.6;margin-bottom:.5rem;user-select:all}
     .nav-donate{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;margin-left:8px;font-size:12px;font-weight:600;color:#f5c430;background:#4b3268;border-radius:var(--radius-lg);text-decoration:none;white-space:nowrap;transition:background .15s;}.nav-donate:hover{background:#3d2856;}
+    .req-op-select{font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:var(--radius);background:var(--paper);color:var(--ink);min-width:130px}
+    .discipline-picker{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:.6rem}
   </style>
 </head>
 <body>
@@ -100,23 +102,9 @@
       </div>
       <div class="config-card">
         <h2>Databases</h2>
-        <div class="db-discipline-bar">
-          <span class="db-discipline-label">&#127891; Discipline:</span>
-          <select id="db-discipline-select" class="db-discipline-select">
-            <option value="general">General / All disciplines</option>
-            <option value="biology">Biology &amp; Life Sciences</option>
-            <option value="ecology">Ecology &amp; Environmental Science</option>
-            <option value="medicine">Medicine &amp; Health Sciences</option>
-            <option value="physics">Physics &amp; Astronomy</option>
-            <option value="mathematics">Mathematics &amp; Statistics</option>
-            <option value="cs">Computer Science &amp; Engineering</option>
-            <option value="chemistry">Chemistry &amp; Materials Science</option>
-            <option value="social">Social Sciences &amp; Humanities</option>
-            <option value="economics">Economics &amp; Business</option>
-            <option value="geosciences">Geosciences &amp; Earth Sciences</option>
-          </select>
-          <span class="db-discipline-hint">Suggests relevant databases. Override freely.</span>
-        </div>
+        <div class="field-label">Disciplines <span class="label-hint">(select any number &mdash; databases merge across all checked)</span></div>
+        <div class="discipline-picker" id="discipline-picker"></div>
+        <div class="field-label" style="margin-top:.6rem">Databases</div>
         <div class="chip-row" id="discipline-db-panel" style="margin-bottom:.75rem"></div>
         <div class="db-resgate-note" id="db-resgate-note" style="display:none"></div>
         <div style="margin-top:.5rem;font-size:11px;color:var(--ink-3)">&#128276; Stubs are listed but not yet queried &mdash; connectors added as free public APIs are verified. <a class="db-request-link" onclick="SWDDiscipline.requestNewDB()" style="margin-left:6px">Request a database &rarr;</a></div>
@@ -136,7 +124,7 @@
         <div class="field"><label for="cfg-langs">Languages <span class="label-hint">(ISO 639-1, comma-separated)</span></label><input type="text" id="cfg-langs" placeholder="en,de,fr,it,es,ja,zh" /></div>
         <div class="req-panel">
           <div class="req-panel-header"><h2>Search requirements</h2><button class="btn btn-sm btn-ghost" id="btn-add-req">+ Add requirement</button></div>
-          <div class="req-panel-info">Requirements are checked after a search. Failing records are <strong>kept but flagged</strong> &mdash; never dropped. Filter by pass/fail in Results.</div>
+          <div class="req-panel-info">Requirements are checked after a search. Failing records are <strong>kept but flagged</strong> &mdash; never dropped. For text-matching types, enter multiple values comma-separated and choose <strong>OR</strong> (any match) or <strong>AND</strong> (all must match).</div>
           <div class="req-list" id="req-list"><p style="font-size:12.5px;color:var(--ink-3)">No requirements set. All records will pass.</p></div>
           <div class="req-suggestion-chips">
             <span class="req-suggestion-chip" data-type="has_country" data-label="Must have country" data-value="">&#128205; Must have country</span>

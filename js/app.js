@@ -10,7 +10,7 @@ import { serializePreset, applyPreset, savePreset, loadPresetFile, handlePresetF
 import { SWDSlots, slots, renderSlots, applySlots } from './modules/slots.js';
 import { scoreSchemaFit, scoreTermRelevance, getExportOptions, updateSizeWarning, SWDScores } from './modules/scores.js';
 import { SWDReq, renderRequirements, applyRequirements } from './modules/requirements.js';
-import { DISCIPLINE_DB_MAP, SWDDiscipline, renderDisciplineSelector, SWDScope, SCOPE_PRESETS } from './modules/databases.js';
+import { DISCIPLINE_DB_MAP, SWDDiscipline, renderDisciplinePicker, renderDisciplineSelector, SWDScope, SCOPE_PRESETS } from './modules/databases.js';
 import { SWDSelection, renderSelectionBar, withScopeCheck, initScopeModal } from './modules/selection.js';
 import { switchTab, renderTable, renderPaywallPanel, renderScreeningCounts, renderMissingSources, initAccordions, logMsg, setProgress, setStatus, updateStats } from './modules/ui.js';
 
@@ -39,7 +39,6 @@ window._renderTable = renderTable;
 })();
 
 // ── Screening — applyScreening now uses array index, not string key ────
-// Called from onclick="applyScreening(globalIdx, decision, rId)"
 window.applyScreening = function(idx, decision, reasonId) {
   const r = state.records[idx];
   if (!r) return;
@@ -79,6 +78,22 @@ function getSettings() {
   };
 }
 
+// ── Sync scope presets when the discipline set changes ──────────
+// Merges scope terms for ALL checked disciplines (instead of replacing
+// with a single discipline's preset), preserving any custom terms.
+function syncScopeToDisciplines() {
+  const keys = SWDDiscipline.getCheckedDisciplines();
+  const mergedTerms = new Set();
+  keys.forEach(k => (SCOPE_PRESETS[k] || []).forEach(t => mergedTerms.add(t)));
+  if (!mergedTerms.size) return;
+  const current = new Set(SWDScope.getTerms());
+  const allPresetTerms = new Set(Object.values(SCOPE_PRESETS).flat());
+  const customTerms = [...current].filter(t => !allPresetTerms.has(t));
+  SWDScope.restore([...mergedTerms, ...customTerms]);
+  const sel = document.getElementById('scope-preset-select');
+  if (sel) sel.value = '';
+}
+
 // ── Init ──────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   connectPresetDeps({ renderMissingSources, renderTable, logMsg });
@@ -87,6 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderMissingSources();
   renderSlots();
   renderRequirements();
+  renderDisciplinePicker();
   renderDisciplineSelector();
   SWDScope.loadPreset('general');
   initScopeModal();
@@ -101,13 +117,18 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-reset-config')?.addEventListener('click', () => {
     ['cfg-yr-from','cfg-yr-to','cfg-extra','cfg-exclude'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     document.getElementById('cfg-max').value = '500';
+    SWDDiscipline.setDisciplines(['general']);
     SWDScope.loadPreset('general');
   });
 
-  document.getElementById('db-discipline-select')?.addEventListener('change', () => {
-    SWDDiscipline.onDisciplineChange();
-    const disc = document.getElementById('db-discipline-select').value;
-    if (SCOPE_PRESETS[disc]) { SWDScope.loadPreset(disc); const sel = document.getElementById('scope-preset-select'); if (sel) sel.value = ''; }
+  // NOTE: discipline selection is now multi-select (#discipline-picker checkboxes).
+  // SWDDiscipline.onDisciplineToggle() is wired via inline onchange in the chip HTML
+  // (rendered by renderDisciplinePicker). We additionally sync scope presets here
+  // by listening for changes on the picker container (event delegation).
+  document.getElementById('discipline-picker')?.addEventListener('change', e => {
+    if (e.target && e.target.matches('input[type="checkbox"]')) {
+      syncScopeToDisciplines();
+    }
   });
 
   document.getElementById('scope-preset-select')?.addEventListener('change', e => {
@@ -222,7 +243,6 @@ async function startSearch() {
   resetSeen();
   resetEngineCache();
   clearSearchLog();
-  // Screening now stored on record objects — cleared automatically when records are replaced
   state.stats = { queries: 0, raw: 0, dedup: 0, records: 0, noloc: 0, errors: 0, skipped: 0 };
   Object.keys(state.catCounts).forEach(k => state.catCounts[k] = 0);
   document.getElementById('log-box').innerHTML = '';
@@ -261,7 +281,6 @@ async function startSearch() {
     for (const h of hits) {
       for (const r of processHit(h)) {
         if (isDuplicate(r)) { dupes++; continue; }
-        // Initialise screening fields on the record itself
         r._screen_decision = '';
         r._screen_reason   = '';
         state.records.push(r);
