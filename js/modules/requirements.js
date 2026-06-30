@@ -1,5 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // REQUIREMENTS.JS — custom multi-requirement filter engine
+// Now supports multiple comma-separated values per requirement,
+// combined with an OR ("any match") or AND ("all must match") operator.
 // ═══════════════════════════════════════════════════════════════
 import { esc } from './state.js';
 
@@ -22,23 +24,58 @@ export const REQ_TYPES = [
   { value: 'custom_text',        label: 'Custom rule (text description)' },
 ];
 
+// Types that support multi-value OR/AND matching (free-text contains/equals types)
+const MULTI_VALUE_TYPES = new Set([
+  'abstract_contains','title_contains','any_field_contains',
+  'source_type_is','language_is','category_is',
+]);
+
+function parseValues(val) {
+  return (val || '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean);
+}
+
+function testMultiValue(haystack, val, op) {
+  const vals = parseValues(val);
+  if (!vals.length) return true;
+  const hay = (haystack || '').toLowerCase();
+  return op === 'and' ? vals.every(v => hay.includes(v)) : vals.some(v => hay.includes(v));
+}
+function testMultiEquals(field, val, op) {
+  const vals = parseValues(val);
+  if (!vals.length) return true;
+  const f = (field || '').toLowerCase();
+  // "equals" with multiple values only makes sense as OR (a field can't equal two things at once for AND)
+  return op === 'and' ? vals.every(v => f === v) : vals.some(v => f === v);
+}
+
 export function testRequirement(r, req) {
   if (!req.enabled) return true;
-  const ft = [r.full_citation || '', r._abstract || '', r.excerpt || '', r.notes || ''].join(' ').toLowerCase();
-  const val = (req.value || '').trim().toLowerCase();
+  const ft = [r.full_citation || '', r._abstract || '', r.excerpt || '', r.notes || ''].join(' ');
+  const op = req.op === 'and' ? 'and' : 'or';
   switch (req.type) {
-    case 'abstract_contains':   return val ? (r._abstract || '').toLowerCase().includes(val) : true;
-    case 'title_contains':      return val ? (r.full_citation || '').toLowerCase().includes(val) : true;
-    case 'any_field_contains':  return val ? ft.includes(val) : true;
+    case 'abstract_contains':   return testMultiValue(r._abstract, req.value, op);
+    case 'title_contains':      return testMultiValue(r.full_citation, req.value, op);
+    case 'any_field_contains':  return testMultiValue(ft, req.value, op);
     case 'has_doi':             return !!(r.doi && r.doi !== 'not reported' && r.doi !== '');
     case 'has_coordinates':     return !!(r.coordinates && r.coordinates !== 'not reported');
     case 'has_country':         return !!(r.country && r.country !== 'not reported');
     case 'has_abstract':        return !!(r._abstract && r._abstract.trim().length > 10);
-    case 'year_from':           return val ? (!r.pub_year || r.pub_year >= parseInt(val)) : true;
-    case 'year_to':             return val ? (!r.pub_year || r.pub_year <= parseInt(val)) : true;
-    case 'source_type_is':      return val ? (r.source_type || '').toLowerCase() === val : true;
-    case 'language_is':         return val ? (r.language || '').toLowerCase().startsWith(val) : true;
-    case 'category_is':         return val ? (r.category || '').toUpperCase() === val.toUpperCase() : true;
+    case 'year_from': {
+      const val = (req.value || '').trim();
+      return val ? (!r.pub_year || r.pub_year >= parseInt(val)) : true;
+    }
+    case 'year_to': {
+      const val = (req.value || '').trim();
+      return val ? (!r.pub_year || r.pub_year <= parseInt(val)) : true;
+    }
+    case 'source_type_is':      return testMultiEquals(r.source_type, req.value, op);
+    case 'language_is': {
+      const vals = parseValues(req.value);
+      if (!vals.length) return true;
+      const lang = (r.language || '').toLowerCase();
+      return op === 'and' ? vals.every(v => lang.startsWith(v)) : vals.some(v => lang.startsWith(v));
+    }
+    case 'category_is':         return testMultiEquals(r.category, req.value, op);
     case 'custom_text':         return true;
     default:                    return true;
   }
@@ -64,11 +101,18 @@ export function renderRequirements() {
   list.innerHTML = requirements.map(req => {
     const typeOpts = REQ_TYPES.map(t => `<option value="${t.value}" ${req.type === t.value ? 'selected' : ''}>${t.label}</option>`).join('');
     const needsValue = !['has_doi','has_coordinates','has_country','has_abstract'].includes(req.type);
+    const isMulti = MULTI_VALUE_TYPES.has(req.type);
+    const opSelect = isMulti ? `<select class="req-op-select" onchange="SWDReq.setOp(${req.id},this.value)" title="How multiple values combine">
+      <option value="or" ${req.op !== 'and' ? 'selected' : ''}>OR (any match)</option>
+      <option value="and" ${req.op === 'and' ? 'selected' : ''}>AND (all must match)</option>
+    </select>` : '';
+    const valuePlaceholder = isMulti ? 'value1, value2, value3…' : 'value';
     return `<div class="req-row ${req.enabled ? 'req-enabled' : 'req-disabled'}" id="req-row-${req.id}">
       <input type="checkbox" class="req-enable-toggle" ${req.enabled ? 'checked' : ''} onchange="SWDReq.toggle(${req.id},this.checked)" />
       <input type="text" class="req-label" value="${esc(req.label)}" placeholder="Requirement label" onchange="SWDReq.rename(${req.id},this.value)" />
       <select class="req-type-select" onchange="SWDReq.setType(${req.id},this.value)">${typeOpts}</select>
-      ${needsValue ? `<input type="text" class="req-value" value="${esc(req.value || '')}" placeholder="value" onchange="SWDReq.setValue(${req.id},this.value)" />` : ''}
+      ${needsValue ? `<input type="text" class="req-value" value="${esc(req.value || '')}" placeholder="${valuePlaceholder}" onchange="SWDReq.setValue(${req.id},this.value)" />` : ''}
+      ${opSelect}
       <button class="req-remove" onclick="SWDReq.remove(${req.id})">✕</button>
     </div>`;
   }).join('');
@@ -78,7 +122,7 @@ export const SWDReq = {
   add(type, label, value) {
     const t = type || 'abstract_contains';
     const tDef = REQ_TYPES.find(x => x.value === t);
-    requirements.push({ id: ++_reqId, type: t, label: label || (tDef?.label || 'New requirement'), value: value || '', enabled: true });
+    requirements.push({ id: ++_reqId, type: t, label: label || (tDef?.label || 'New requirement'), value: value || '', op: 'or', enabled: true });
     renderRequirements();
   },
   remove(id) { requirements.splice(requirements.findIndex(r => r.id === id), 1); renderRequirements(); },
@@ -86,11 +130,12 @@ export const SWDReq = {
   rename(id, label) { const r = requirements.find(r => r.id === id); if (r) r.label = label; },
   setType(id, type) { const r = requirements.find(r => r.id === id); if (r) { r.type = type; renderRequirements(); } },
   setValue(id, val) { const r = requirements.find(r => r.id === id); if (r) r.value = val; },
-  serialize() { return requirements.map(r => ({ type: r.type, label: r.label, value: r.value, enabled: r.enabled })); },
+  setOp(id, op) { const r = requirements.find(r => r.id === id); if (r) r.op = (op === 'and' ? 'and' : 'or'); },
+  serialize() { return requirements.map(r => ({ type: r.type, label: r.label, value: r.value, op: r.op || 'or', enabled: r.enabled })); },
   restore(arr) {
     if (!Array.isArray(arr)) return;
     requirements.length = 0;
-    arr.forEach(r => requirements.push({ id: ++_reqId, type: r.type || 'custom_text', label: r.label || '', value: r.value || '', enabled: r.enabled !== false }));
+    arr.forEach(r => requirements.push({ id: ++_reqId, type: r.type || 'custom_text', label: r.label || '', value: r.value || '', op: r.op === 'and' ? 'and' : 'or', enabled: r.enabled !== false }));
     renderRequirements();
   },
 };

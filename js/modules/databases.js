@@ -108,16 +108,46 @@ export const DISCIPLINE_DB_MAP = {
   DISCIPLINE_DB_MAP.general.available = [...allDBs.values()];
 })();
 
+// ── MULTI-SELECT DISCIPLINES ─────────────────────────────────────
+// Multiple disciplines can now be checked at once. Their database
+// lists and default-on sets are MERGED (union), not replaced.
+let _checkedDisciplines = new Set(['general']);
 let _currentDisciplineChecked = new Set(DISCIPLINE_DB_MAP.general.defaultOn);
+
+function mergedAvailableDBs(disciplineKeys) {
+  const merged = new Map();
+  disciplineKeys.forEach(key => {
+    const map = DISCIPLINE_DB_MAP[key];
+    if (!map) return;
+    (map.available || []).forEach(db => { if (!merged.has(db.id)) merged.set(db.id, db); });
+  });
+  return [...merged.values()];
+}
+function mergedDefaultOn(disciplineKeys) {
+  const set = new Set();
+  disciplineKeys.forEach(key => { (DISCIPLINE_DB_MAP[key]?.defaultOn || []).forEach(id => set.add(id)); });
+  return set;
+}
+
+export function renderDisciplinePicker() {
+  const container = document.getElementById('discipline-picker');
+  if (!container) return;
+  container.innerHTML = Object.entries(DISCIPLINE_DB_MAP).map(([key, map]) => {
+    const isChecked = _checkedDisciplines.has(key);
+    return `<label class="chip">
+      <input type="checkbox" value="${key}" ${isChecked ? 'checked' : ''} onchange="SWDDiscipline.onDisciplineToggle()" />
+      ${esc(map.label)}
+    </label>`;
+  }).join('');
+}
 
 export function renderDisciplineSelector() {
   const container = document.getElementById('discipline-db-panel');
   if (!container) return;
-  const disc = document.getElementById('db-discipline-select')?.value || 'general';
-  const map = DISCIPLINE_DB_MAP[disc];
-  if (!map) return;
-  container.innerHTML = map.available.map(db => {
-    const isChecked = _currentDisciplineChecked.has(db.id) ?? map.defaultOn.includes(db.id);
+  const keys = [..._checkedDisciplines];
+  const available = mergedAvailableDBs(keys.length ? keys : ['general']);
+  container.innerHTML = available.map(db => {
+    const isChecked = _currentDisciplineChecked.has(db.id);
     const statusNote = db.status === 'stub' ? ' <span class="db-stub-note">(stub)</span>' : '';
     const isDisabled = db.status === 'noapl';
     return `<label class="chip" style="${isDisabled ? 'opacity:.4;cursor:not-allowed' : ''}">
@@ -128,10 +158,12 @@ export function renderDisciplineSelector() {
 }
 
 export const SWDDiscipline = {
-  onDisciplineChange() {
-    const disc = document.getElementById('db-discipline-select')?.value || 'general';
-    const map = DISCIPLINE_DB_MAP[disc];
-    _currentDisciplineChecked = new Set(map.defaultOn);
+  // Called when a discipline checkbox is toggled — merges DB lists
+  onDisciplineToggle() {
+    const chips = document.querySelectorAll('#discipline-picker input[type="checkbox"]');
+    _checkedDisciplines = new Set([...chips].filter(c => c.checked).map(c => c.value));
+    if (!_checkedDisciplines.size) _checkedDisciplines.add('general');
+    _currentDisciplineChecked = mergedDefaultOn([..._checkedDisciplines]);
     renderDisciplineSelector();
     SWDDiscipline.syncToSettings();
   },
@@ -146,6 +178,14 @@ export const SWDDiscipline = {
     });
   },
   getChecked() { return [..._currentDisciplineChecked]; },
+  getCheckedDisciplines() { return [..._checkedDisciplines]; },
+  setDisciplines(keys) {
+    _checkedDisciplines = new Set(Array.isArray(keys) && keys.length ? keys : ['general']);
+    _currentDisciplineChecked = mergedDefaultOn([..._checkedDisciplines]);
+    renderDisciplinePicker();
+    renderDisciplineSelector();
+    SWDDiscipline.syncToSettings();
+  },
   requestNewDB() {
     const body = `Hi Mehregan,\n\nI would like to request a new database connector.\n\nDatabase name: \nURL / API docs: \nFree public API: \nDiscipline(s): \nWhy useful: \n\nThank you!`;
     window.open(`mailto:?subject=${encodeURIComponent('SciWide Search — Database connector request')}&body=${encodeURIComponent(body)}`);
@@ -177,6 +217,12 @@ function _syncScopeToLegacy() {
   ).join('');
 }
 
+// FIX: scope chip delete bug. The old version embedded JSON.stringify(t)
+// (which produces double quotes) inside an onclick="..." HTML attribute
+// that is ALSO double-quote delimited — this broke the attribute parsing
+// and silently failed. Now we use a data-term attribute + a single
+// delegated click listener (wired once in app.js / here on first render),
+// so no string ever has to be safely embedded inside an inline handler.
 export function renderScopeChips() {
   const container = document.getElementById('scope-chips');
   if (!container) return;
@@ -185,9 +231,27 @@ export function renderScopeChips() {
     _syncScopeToLegacy(); return;
   }
   container.innerHTML = [..._scopeTerms].map(t =>
-    `<span class="scope-chip">${esc(t)}<button class="scope-chip-remove" onclick="SWDScope.remove(${JSON.stringify(t)})" title="Remove">&times;</button></span>`
+    `<span class="scope-chip">${esc(t)}<button class="scope-chip-remove" data-term="${esc(t)}" title="Remove">&times;</button></span>`
   ).join('');
   _syncScopeToLegacy();
+}
+
+// Event delegation: one listener on the container handles all remove clicks,
+// reading the raw (non-HTML-escaped) term from a WeakMap keyed by the escaped
+// label is unnecessary — dataset.term is already HTML-decoded by the browser
+// when read via .dataset, so esc() round-trips safely here.
+let _scopeDelegationWired = false;
+function wireScopeDelegation() {
+  if (_scopeDelegationWired) return;
+  const container = document.getElementById('scope-chips');
+  if (!container) return;
+  container.addEventListener('click', e => {
+    const btn = e.target.closest('.scope-chip-remove');
+    if (!btn) return;
+    const term = btn.dataset.term;
+    if (term) SWDScope.remove(term);
+  });
+  _scopeDelegationWired = true;
 }
 
 export const SWDScope = {
@@ -198,10 +262,19 @@ export const SWDScope = {
     if (custom.length && !confirm(`Loading a preset will replace ${custom.length} custom term(s). Continue?`)) return;
     _scopeTerms = new Set(terms);
     renderScopeChips();
+    wireScopeDelegation();
   },
-  add(term) { const t = (term || '').trim(); if (!t) return; _scopeTerms.add(t); renderScopeChips(); },
+  add(term) {
+    const t = (term || '').trim();
+    if (!t) return;
+    _scopeTerms.add(t);
+    renderScopeChips();
+    wireScopeDelegation();
+  },
   remove(term) { _scopeTerms.delete(term); renderScopeChips(); },
   clear() { _scopeTerms.clear(); renderScopeChips(); },
   getTerms() { return [..._scopeTerms]; },
-  restore(arr) { if (Array.isArray(arr)) { _scopeTerms = new Set(arr); renderScopeChips(); } },
+  restore(arr) {
+    if (Array.isArray(arr)) { _scopeTerms = new Set(arr); renderScopeChips(); wireScopeDelegation(); }
+  },
 };
