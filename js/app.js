@@ -38,13 +38,29 @@ window._renderTable = renderTable;
   SWDSlots.exportAll  = ()  => withScopeCheck(origSlotAll,   []);
 })();
 
-// ── Screening — applyScreening now uses array index, not string key ────
+// ── Per-record screening (array index, no string key) ───────────
 window.applyScreening = function(idx, decision, reasonId) {
   const r = state.records[idx];
   if (!r) return;
   const reason = (document.getElementById(reasonId)?.value || '').trim();
   r._screen_decision = decision;
   r._screen_reason   = reason;
+  renderTable();
+  renderScreeningCounts();
+};
+
+// ── Bulk screening: apply decision to ALL currently filtered records ──
+// state.filteredView is the full filtered set (not just current page).
+// User gets a confirmation showing how many records will be affected.
+window.applyScreeningAll = function(decision) {
+  const filtered = state.filteredView || [];
+  if (!filtered.length) return;
+  const label = decision === 'include' ? 'Include \u2713' : decision === 'exclude' ? 'Exclude \u2717' : 'Maybe ?';
+  if (!confirm(`Mark all ${filtered.length} filtered record(s) as "${label}"?\n\nThis applies to ALL filtered records, not just the current page.`)) return;
+  filtered.forEach(r => {
+    r._screen_decision = decision;
+    if (!r._screen_reason) r._screen_reason = '';
+  });
   renderTable();
   renderScreeningCounts();
 };
@@ -78,17 +94,14 @@ function getSettings() {
   };
 }
 
-// ── Sync scope presets when the discipline set changes ──────────
-// Merges scope terms for ALL checked disciplines (instead of replacing
-// with a single discipline's preset), preserving any custom terms.
+// ── Sync scope presets when discipline set changes ───────────────
 function syncScopeToDisciplines() {
   const keys = SWDDiscipline.getCheckedDisciplines();
   const mergedTerms = new Set();
   keys.forEach(k => (SCOPE_PRESETS[k] || []).forEach(t => mergedTerms.add(t)));
   if (!mergedTerms.size) return;
-  const current = new Set(SWDScope.getTerms());
   const allPresetTerms = new Set(Object.values(SCOPE_PRESETS).flat());
-  const customTerms = [...current].filter(t => !allPresetTerms.has(t));
+  const customTerms = SWDScope.getTerms().filter(t => !allPresetTerms.has(t));
   SWDScope.restore([...mergedTerms, ...customTerms]);
   const sel = document.getElementById('scope-preset-select');
   if (sel) sel.value = '';
@@ -121,10 +134,6 @@ document.addEventListener('DOMContentLoaded', () => {
     SWDScope.loadPreset('general');
   });
 
-  // NOTE: discipline selection is now multi-select (#discipline-picker checkboxes).
-  // SWDDiscipline.onDisciplineToggle() is wired via inline onchange in the chip HTML
-  // (rendered by renderDisciplinePicker). We additionally sync scope presets here
-  // by listening for changes on the picker container (event delegation).
   document.getElementById('discipline-picker')?.addEventListener('change', e => {
     if (e.target && e.target.matches('input[type="checkbox"]')) {
       syncScopeToDisciplines();
