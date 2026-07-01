@@ -58,9 +58,17 @@ export function renderTable() {
 
   state.filteredView = data;
 
-  // Screen column FIRST, then data columns — no selection checkbox column
+  // Screen column header: three bulk-action buttons apply decision to ALL filtered records
+  // (state.filteredView), not just the current page — so works across all 3000 rows.
   const thead = document.getElementById('results-thead');
-  if (thead) thead.innerHTML = '<tr><th class="screen-cell" style="min-width:110px">Screen</th>' +
+  if (thead) thead.innerHTML =
+    `<tr><th class="screen-cell" style="min-width:130px">` +
+    `<div style="font-size:10px;color:var(--ink-3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.06em">Screen all</div>` +
+    `<div class="screen-btns">` +
+    `<button class="screen-btn active-include" onclick="applyScreeningAll('include')" title="Mark ALL filtered records as Include">\u2713</button>` +
+    `<button class="screen-btn active-maybe"   onclick="applyScreeningAll('maybe')"   title="Mark ALL filtered records as Maybe">?</button>` +
+    `<button class="screen-btn active-exclude" onclick="applyScreeningAll('exclude')" title="Mark ALL filtered records as Exclude">\u2717</button>` +
+    `</div></th>` +
     allCols.map(s => `<th>${esc(s.label || s.field)}</th>`).join('') + '</tr>';
 
   const tbody = document.getElementById('results-tbody');
@@ -84,7 +92,6 @@ export function renderTable() {
     const rId = `sr-${globalIdx}-${Math.random().toString(36).slice(2, 5)}`;
     const reqFail = r._req_fail;
 
-    // Screen cell FIRST
     const screenCell = `<td class="screen-cell">
       <div class="screen-btns">
         <button class="screen-btn ${dec === 'include' ? 'active-include' : ''}" onclick="applyScreening(${globalIdx},'include','${rId}')" title="Include">\u2713</button>
