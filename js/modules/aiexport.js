@@ -2,7 +2,14 @@
 // AIEXPORT.JS — batch export for external AI extraction + merge import
 // ═══════════════════════════════════════════════════════════════
 import { state, dlFile, stamp } from './state.js';
-import { getExtractionFields } from './extraction.js';
+import { requirements, TEXT_TYPES } from './requirements.js';
+
+// Field labels come straight from Requirements — no separate synonym-store module anymore
+function getExtractionFields() {
+  return requirements
+    .filter(r => r.enabled && TEXT_TYPES.has(r.type) && (r.label || '').trim())
+    .map(r => ({ id: r.id, label: r.label }));
+}
 
 function csvCell(v) { return `"${String(v == null ? '' : v).replace(/"/g, '""').replace(/\n/g, ' ')}"`; }
 
@@ -46,7 +53,7 @@ function toCSV(rows) {
 
 export async function downloadAIExport(batchSizeInput) {
   const rows = leanRows();
-  if (!rows.length) { alert('No records to export. Run a search (and the Extraction Filter) first.'); return; }
+  if (!rows.length) { alert('No records to export. Run a search first.'); return; }
   const prompt = buildExtractionPrompt();
   const size = (!batchSizeInput || batchSizeInput === 'all') ? rows.length : Math.max(1, parseInt(batchSizeInput) || rows.length);
 
