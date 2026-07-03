@@ -9,11 +9,11 @@ import { SWDExportFn, exportFilteredCSV, exportFilteredJSON } from './modules/ex
 import { serializePreset, applyPreset, savePreset, loadPresetFile, handlePresetFile, loadPresetFromUrl, loadBundledPreset, connectPresetDeps } from './modules/presets.js';
 import { SWDSlots, slots, renderSlots, applySlots } from './modules/slots.js';
 import { scoreSchemaFit, scoreTermRelevance, getExportOptions, updateSizeWarning, SWDScores } from './modules/scores.js';
-import { SWDReq, renderRequirements, applyRequirements } from './modules/requirements.js';
+import { SWDReq, renderRequirements, applyRequirementsWithFullText } from './modules/requirements.js';
 import { DISCIPLINE_DB_MAP, SWDDiscipline, renderDisciplinePicker, renderDisciplineSelector, SWDScope, SCOPE_PRESETS } from './modules/databases.js';
 import { SWDSelection, renderSelectionBar, withScopeCheck, initScopeModal } from './modules/selection.js';
 import { switchTab, renderTable, renderPaywallPanel, renderScreeningCounts, renderMissingSources, initAccordions, logMsg, setProgress, setStatus, updateStats } from './modules/ui.js';
-import { generateSynonymPrompt, parseSynonymReply, getExtractionFields, addSynonym, removeSynonym, lockSynonyms, isLocked, runExtractionFilter } from './modules/extraction.js';
+import { generateSynonymPrompt, parseSynonymReplyAndApply } from './modules/extraction.js';
 import { downloadAIExport, parseAIResponse, mergeAIResults } from './modules/aiexport.js';
 
 // ── Expose globals for inline HTML handlers ─────────────────────
@@ -27,9 +27,9 @@ window.SWDSelection = SWDSelection;
 window.SWDExportFn  = SWDExportFn;
 window._renderTable = renderTable;
 
-// Wrap export fns with scope check (screening-based exports bypass it)
+// Wrap export fns with scope check (session-summary exports bypass it)
 (function wrapExports() {
-  const NO_SCOPE = new Set(['screened','searchLog','markdown','missing','schema','excludedRemoved']);
+  const NO_SCOPE = new Set(['passing','flagged','searchLog','markdown','missing','schema']);
   const orig = { ...SWDExportFn };
   Object.keys(orig).forEach(k => {
     SWDExportFn[k] = NO_SCOPE.has(k) ? (...args) => orig[k](...args) : (...args) => withScopeCheck(orig[k], args);
@@ -82,42 +82,18 @@ function syncScopeToDisciplines() {
   if (sel) sel.value = '';
 }
 
-// ── Extraction Filter tab: synonym UI ─────────────────────────────
-function renderSynonymFieldsUI() {
-  const container = document.getElementById('synonym-fields-list');
-  if (!container) return;
-  const fields = getExtractionFields();
-  if (!fields.length) {
-    container.innerHTML = '<p style="font-size:12.5px;color:var(--ink-3)">No search parameters found. Add at least one "Abstract contains", "Title contains", or "Custom rule" requirement in Configure &rarr; Search requirements, then come back here.</p>';
-    return;
-  }
-  container.innerHTML = fields.map(f => `
-    <div class="synfield-card">
-      <div class="synfield-label">${esc(f.label)}</div>
-      <div class="scope-chips">${f.terms.length ? f.terms.map(t => `<span class="scope-chip">${esc(t)}<button class="scope-chip-remove" data-fid="${esc(f.id)}" data-term="${esc(t)}" title="Remove">&times;</button></span>`).join('') : '<span class="scope-empty">No terms yet</span>'}</div>
-      <div class="scope-add-row"><input type="text" class="scope-add-input synfield-add" data-fid="${esc(f.id)}" placeholder="Add term\u2026" /><button class="btn btn-sm btn-ghost synfield-add-btn" data-fid="${esc(f.id)}">Add</button></div>
-    </div>
-  `).join('');
+// ── Synonym prompt modal (Configure tab) ──────────────────────────
+function openSynonymModal() {
+  const modal = document.getElementById('synonym-modal');
+  const out = document.getElementById('synonym-modal-prompt');
+  const prompt = generateSynonymPrompt();
+  if (out) out.value = prompt || 'No text-matching requirements yet \u2014 add at least one "Abstract contains", "Title contains", or "Custom rule" requirement first, then reopen this.';
+  const reply = document.getElementById('synonym-modal-reply');
+  if (reply) reply.value = '';
+  if (modal) modal.classList.add('visible');
 }
-
-function wireSynonymDelegation() {
-  const container = document.getElementById('synonym-fields-list');
-  if (!container) return;
-  container.addEventListener('click', e => {
-    const rm = e.target.closest('.scope-chip-remove');
-    if (rm) { removeSynonym(rm.dataset.fid, rm.dataset.term); renderSynonymFieldsUI(); return; }
-    const addBtn = e.target.closest('.synfield-add-btn');
-    if (addBtn) {
-      const input = container.querySelector(`.synfield-add[data-fid="${addBtn.dataset.fid}"]`);
-      if (input && input.value.trim()) { addSynonym(addBtn.dataset.fid, input.value); renderSynonymFieldsUI(); }
-    }
-  });
-  container.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && e.target.matches('.synfield-add')) {
-      e.preventDefault();
-      if (e.target.value.trim()) { addSynonym(e.target.dataset.fid, e.target.value); renderSynonymFieldsUI(); }
-    }
-  });
+function closeSynonymModal() {
+  document.getElementById('synonym-modal')?.classList.remove('visible');
 }
 
 // ── Init ──────────────────────────────────────────────────────────
@@ -134,13 +110,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initScopeModal();
   initAccordions();
   renderSelectionBar();
-  wireSynonymDelegation();
 
   document.querySelectorAll('.nav-tab').forEach(btn =>
-    btn.addEventListener('click', () => {
-      switchTab(btn.dataset.tab);
-      if (btn.dataset.tab === 'extract') renderSynonymFieldsUI();
-    })
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab))
   );
 
   document.getElementById('btn-start-from-config')?.addEventListener('click', () => { switchTab('run'); guardedStartSearch(); });
@@ -178,6 +150,19 @@ document.addEventListener('DOMContentLoaded', () => {
     SWDReq.add(chip.dataset.type, chip.dataset.label, chip.dataset.value || '')
   ));
 
+  // ── Synonym prompt modal ────────────────────────────────────────
+  document.getElementById('btn-open-synonym-modal')?.addEventListener('click', openSynonymModal);
+  document.getElementById('synonym-modal-close')?.addEventListener('click', closeSynonymModal);
+  document.getElementById('synonym-modal')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeSynonymModal(); });
+  document.getElementById('btn-synonym-modal-apply')?.addEventListener('click', () => {
+    const text = document.getElementById('synonym-modal-reply')?.value || '';
+    if (!text.trim()) { alert('Paste the AI\u2019s reply first.'); return; }
+    const added = parseSynonymReplyAndApply(text);
+    renderRequirements();
+    if (added) { alert(`Added ${added} synonym term(s) to your requirements.`); closeSynonymModal(); }
+    else alert('No matching requirement labels found in that reply \u2014 check the format matches "Label: term1, term2, ...".');
+  });
+
   document.getElementById('btn-run')?.addEventListener('click', guardedStartSearch);
   document.getElementById('btn-stop')?.addEventListener('click', () => { if (state.abortCtrl) state.abortCtrl.abort(); });
   document.getElementById('btn-add-term')?.addEventListener('click', addMidTerm);
@@ -192,53 +177,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const db = document.getElementById('mid-db-select').value; if (!db) return;
     logMsg(`Database queued: ${DB_LABELS[db] || db}`, 'ok');
     const el = document.querySelector(`input[value="${db}"]`); if (el) el.checked = true;
-  });
-
-  // ── Extraction Filter tab ─────────────────────────────────────
-  document.getElementById('btn-gen-synonym-prompt')?.addEventListener('click', () => {
-    const out = document.getElementById('synonym-prompt-output');
-    const prompt = generateSynonymPrompt();
-    if (out) out.value = prompt || 'No search parameters yet \u2014 add one in Configure \u2192 Search requirements first.';
-    renderSynonymFieldsUI();
-  });
-  document.getElementById('btn-parse-synonyms')?.addEventListener('click', () => {
-    const text = document.getElementById('synonym-reply-input')?.value || '';
-    const added = parseSynonymReply(text);
-    renderSynonymFieldsUI();
-    logMsg(`Added ${added} synonym term(s) from AI reply.`, added ? 'ok' : 'warn');
-  });
-  document.getElementById('btn-lock-synonyms')?.addEventListener('click', () => {
-    lockSynonyms();
-    alert('Synonyms locked. You can still edit terms above \u2014 locking just confirms you\u2019re ready to run the filter.');
-  });
-  document.getElementById('btn-run-extraction')?.addEventListener('click', async () => {
-    if (!isLocked() && !confirm('You have not clicked "Lock synonyms" yet. Run the extraction filter with the current terms anyway?')) return;
-    const btn = document.getElementById('btn-run-extraction');
-    const progressEl = document.getElementById('extraction-progress');
-    const summaryEl = document.getElementById('extraction-summary');
-    btn.disabled = true;
-    summaryEl.innerHTML = '';
-    const result = await runExtractionFilter((done, total) => {
-      if (progressEl) progressEl.textContent = `Checking record ${done} of ${total}\u2026`;
-    });
-    btn.disabled = false;
-    if (progressEl) progressEl.textContent = '';
-    if (result.error) { alert(result.error); return; }
-    summaryEl.innerHTML = `
-      <div class="req-panel-info" style="background:var(--accent-lt);border-color:var(--accent)">
-        <strong>Done.</strong> ${result.total} records checked (${result.fetchedFullText} full-text fetches).<br>
-        <span class="screen-badge include">${result.included} included</span>
-        <span class="screen-badge maybe">${result.inconclusive} paywall/inconclusive</span>
-        <span class="screen-badge exclude">${result.excluded} removed (no match)</span>
-      </div>`;
-    renderRequirements ? null : null;
-    applyRequirements(state.records);
-    applySlots(state.records);
-    renderTable();
-    renderPaywallPanel();
-    renderScreeningCounts();
-    const badge = document.getElementById('badge-results');
-    if (badge) { badge.textContent = state.records.length; badge.hidden = !state.records.length; }
   });
 
   // ── AI Extraction tab ───────────────────────────────────────────
@@ -279,7 +217,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('res-verif')?.addEventListener('change', renderTable);
   document.getElementById('res-sort')?.addEventListener('change', renderTable);
   document.getElementById('res-req-filter')?.addEventListener('change', renderTable);
-  document.getElementById('res-screen-filter')?.addEventListener('change', e => { state.screenFilter = e.target.value; renderTable(); });
   document.querySelectorAll('.cat-filter-btn').forEach(btn => btn.addEventListener('click', () => {
     document.querySelectorAll('.cat-filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active'); state.currentCat = btn.dataset.cat; renderTable();
@@ -344,7 +281,6 @@ async function startSearch() {
   state.isRunning = true;
   state.abortCtrl = new AbortController();
   state.records.length = 0;
-  state.excludedRecords = [];
   state.selection.clear();
   renderSelectionBar();
   resetSeen();
@@ -388,8 +324,6 @@ async function startSearch() {
     for (const h of hits) {
       for (const r of processHit(h)) {
         if (isDuplicate(r)) { dupes++; continue; }
-        r._screen_decision = '';
-        r._screen_reason   = '';
         state.records.push(r);
         n++; state.stats.dedup++;
         if (r.category === 'E') state.stats.noloc++;
@@ -431,7 +365,13 @@ async function startSearch() {
     }
   }
 
-  applyRequirements(state.records);
+  if (!signal.aborted && state.records.length) {
+    logMsg('Checking requirements (with full-text fallback for open-access records)\u2026');
+    const reqResult = await applyRequirementsWithFullText(state.records, (d, t) => {
+      setProgress(null, `Checking requirements \u2014 record ${d} of ${t}\u2026`);
+    });
+    logMsg(`Requirements check complete \u2014 ${reqResult.fullTextFetched} full-text fetch(es) attempted.`, 'ok');
+  }
   applySlots(state.records);
   SWDSlots.renderExportPanel();
   updateSizeWarning();
@@ -441,7 +381,7 @@ async function startSearch() {
   setStatus(stopped ? 'stopped' : 'done', stopped ? 'Stopped' : 'Done');
   logMsg(stopped
     ? `Stopped. ${state.records.length} records.`
-    : `Complete \u2014 ${state.records.length} records \u00b7 ${state.stats.errors} errors \u00b7 ${state.stats.skipped} skipped. Next: go to the Extraction Filter tab.`,
+    : `Complete \u2014 ${state.records.length} records \u00b7 ${state.stats.errors} errors \u00b7 ${state.stats.skipped} skipped`,
     stopped ? 'warn' : 'ok');
   state.isRunning = false;
   document.getElementById('btn-run').disabled = false;
@@ -456,5 +396,5 @@ async function startSearch() {
     pwBadge.textContent = n; pwBadge.hidden = !n;
   }
   renderTable(); renderPaywallPanel(); renderScreeningCounts();
-  if (!stopped) { switchTab('extract'); renderSynonymFieldsUI(); }
+  if (!stopped) switchTab('results');
 }
