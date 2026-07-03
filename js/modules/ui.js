@@ -1,11 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-// UI.JS — renderTable, renderPaywallPanel, screening UI, tabs
+// UI.JS — renderTable, renderPaywallPanel, tabs
 // ═══════════════════════════════════════════════════════════════
-import { esc, state, screeningKey, VERIF_CLASS, SCREEN_CLASS } from './state.js';
+import { esc, state, VERIF_CLASS, SCREEN_CLASS } from './state.js';
 import { getActiveSchema } from './schema.js';
 import { slots } from './slots.js';
 import { scoreSchemaFit, scoreTermRelevance, getExportOptions } from './scores.js';
-import { renderPaginationControls, SWDSelection, renderSelectionBar } from './selection.js';
+import { renderPaginationControls } from './selection.js';
 
 let _lastOpenAccordion = null;
 
@@ -23,6 +23,9 @@ export function switchTab(id) {
     if (g) g.classList.add('open');
   }
 }
+
+const STATUS_LABEL = { include: 'Included', maybe: 'Paywall / inconclusive', exclude: 'Excluded' };
+const STATUS_CLASS = { include: 'screen-badge include', maybe: 'screen-badge maybe', exclude: 'screen-badge exclude' };
 
 export function renderTable() {
   const active = getActiveSchema();
@@ -58,23 +61,14 @@ export function renderTable() {
 
   state.filteredView = data;
 
-  // Screen column header: three bulk-action buttons apply decision to ALL filtered records
-  // (state.filteredView), not just the current page — so works across all 3000 rows.
   const thead = document.getElementById('results-thead');
-  if (thead) thead.innerHTML =
-    `<tr><th class="screen-cell" style="min-width:130px">` +
-    `<div style="font-size:10px;color:var(--ink-3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.06em">Screen all</div>` +
-    `<div class="screen-btns">` +
-    `<button class="screen-btn active-include" onclick="applyScreeningAll('include')" title="Mark ALL filtered records as Include">\u2713</button>` +
-    `<button class="screen-btn active-maybe"   onclick="applyScreeningAll('maybe')"   title="Mark ALL filtered records as Maybe">?</button>` +
-    `<button class="screen-btn active-exclude" onclick="applyScreeningAll('exclude')" title="Mark ALL filtered records as Exclude">\u2717</button>` +
-    `</div></th>` +
+  if (thead) thead.innerHTML = '<tr><th style="min-width:150px">Status</th>' +
     allCols.map(s => `<th>${esc(s.label || s.field)}</th>`).join('') + '</tr>';
 
   const tbody = document.getElementById('results-tbody');
   const totalCols = allCols.length + 1;
   if (!data.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="${totalCols}">${state.records.length === 0 ? 'Run a search to see results.' : 'No records match the filter.'}</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${totalCols}">${state.records.length === 0 ? 'Run a search, then the Extraction Filter, to see results here.' : 'No records match the filter.'}</td></tr>`;
     document.getElementById('table-footer').textContent = '';
     renderPaginationControls(0);
     return;
@@ -86,24 +80,19 @@ export function renderTable() {
   const pageData = data.slice(startIdx, startIdx + pageSize);
 
   tbody.innerHTML = pageData.map(r => {
-    const globalIdx = state.records.indexOf(r);
     const dec = r._screen_decision || '';
     const reason = r._screen_reason || '';
-    const rId = `sr-${globalIdx}-${Math.random().toString(36).slice(2, 5)}`;
     const reqFail = r._req_fail;
-
-    const screenCell = `<td class="screen-cell">
-      <div class="screen-btns">
-        <button class="screen-btn ${dec === 'include' ? 'active-include' : ''}" onclick="applyScreening(${globalIdx},'include','${rId}')" title="Include">\u2713</button>
-        <button class="screen-btn ${dec === 'maybe'   ? 'active-maybe'   : ''}" onclick="applyScreening(${globalIdx},'maybe','${rId}')"   title="Maybe">?</button>
-        <button class="screen-btn ${dec === 'exclude' ? 'active-exclude' : ''}" onclick="applyScreening(${globalIdx},'exclude','${rId}')" title="Exclude">\u2717</button>
-      </div>
-      <input type="text" id="${rId}" class="screen-reason-input" value="${esc(reason)}" placeholder="reason\u2026" />
-    </td>`;
+    const statusBadge = dec
+      ? `<span class="${STATUS_CLASS[dec] || 'screen-badge'}">${esc(STATUS_LABEL[dec] || dec)}</span>`
+      : `<span class="screen-badge unscreened">Not yet checked</span>`;
+    const conflictBadge = r._has_conflict ? `<span class="conflict-badge" title="AI-extracted values conflict — see AI Extraction tab">&#9888; conflict</span>` : '';
+    const dupBadge = r._ai_duplicate_flag ? `<span class="dup-badge" title="Flagged as duplicate on import — check manually">&#9868; duplicate</span>` : '';
+    const statusCell = `<td class="screen-cell">${statusBadge}${conflictBadge}${dupBadge}<div style="font-size:10.5px;color:var(--ink-3);margin-top:3px">${esc(reason.slice(0, 90))}</div></td>`;
 
     const rowClass = [dec ? 'row-' + dec : '', reqFail ? 'req-fail-row' : ''].filter(Boolean).join(' ');
 
-    return `<tr class="${rowClass}">` + screenCell + allCols.map(s => {
+    return `<tr class="${rowClass}">` + statusCell + allCols.map(s => {
       if (s.field === '_schemaFit') return `<td style="font-family:var(--mono);font-size:11px;color:var(--accent)">${scoreSchemaFit(r)}%</td>`;
       if (s.field === '_termRel')  return `<td style="font-family:var(--mono);font-size:11px;color:var(--blue)">${scoreTermRelevance(r)}%</td>`;
       const val = r[s.field];
@@ -146,15 +135,15 @@ export function renderPaywallPanel() {
 export function renderScreeningCounts() {
   const records = state.records;
   const inc   = records.filter(r => r._screen_decision === 'include').length;
-  const exc   = records.filter(r => r._screen_decision === 'exclude').length;
   const maybe = records.filter(r => r._screen_decision === 'maybe').length;
+  const rem   = state.excludedRecords.length;
   const un    = records.filter(r => !r._screen_decision).length;
   const el = document.getElementById('screening-counts');
   if (el) el.innerHTML =
     `<span class="screen-badge include">${inc} included</span> ` +
-    `<span class="screen-badge exclude">${exc} excluded</span> ` +
-    `<span class="screen-badge maybe">${maybe} maybe</span> ` +
-    `<span class="screen-badge unscreened">${un} unscreened</span>`;
+    `<span class="screen-badge maybe">${maybe} paywall/inconclusive</span> ` +
+    `<span class="screen-badge exclude">${rem} removed</span>` +
+    (un ? ` <span class="screen-badge unscreened">${un} not yet checked</span>` : '');
 }
 
 export function renderMissingSources() {

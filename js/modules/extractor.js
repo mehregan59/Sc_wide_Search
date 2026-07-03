@@ -84,6 +84,8 @@ export function processHit(hit) {
     notes: country === 'not reported' ? 'No geographic term found — manual full-text check required.' : '',
     screening_decision: '', screening_reason: '',
     _abstract: hit.abstract || '',
+    pmcid: hit.pmcid || null,
+    _isOA: !!hit.isOA,
   };
   for (const f of customFields)
     r[f.field] = (f.extractFrom === 'custom' && f.keywords?.length) ? extractCustomField(f, ft) : 'not reported';

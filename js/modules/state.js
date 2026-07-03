@@ -35,6 +35,7 @@ export function dlFile(content, name, mime) {
 // ── Shared mutable state ────────────────────────────────────────
 export const state = {
   records: [],
+  excludedRecords: [], // records the extraction filter checked fully and confirmed have NO parameter match — logged, not lost
   selection: new Set(),
   filteredView: [],
   lastSettings: null,
@@ -84,10 +85,8 @@ export function clearSearchLog() { searchLog.length = 0; }
 
 // ── Screening state ─────────────────────────────────────────────
 // Screening is stored DIRECTLY ON the record object (_screen_decision, _screen_reason).
-// This eliminates all key-lookup complexity and cross-module Map sharing issues.
-// getScreening / setScreening kept as thin wrappers for API compatibility.
+// Now auto-populated by the Extraction Filter pass, not manual buttons.
 export function screeningKey(r) {
-  // Still used for row selection (checkboxes), not for screening state
   return (r.doi && r.doi !== 'not reported')
     ? r.doi
     : (r.full_citation || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 80);
@@ -100,5 +99,5 @@ export function setScreening(r, decision, reason) {
   r._screen_reason = reason || '';
 }
 export function clearScreening() {
-  // Now a no-op — screening is cleared when state.records is replaced at search start
+  // no-op — screening is cleared when state.records is replaced at search start
 }

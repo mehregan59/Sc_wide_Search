@@ -18,6 +18,20 @@ export async function fetchJSON(url, signal, attempt = 0) {
   } catch (e) { if (e.name === 'AbortError') throw e; return null; }
 }
 
+// Full text fetch for Europe PMC open-access records (used by the Extraction Filter).
+// pmcid must include the "PMC" prefix as returned by Europe PMC's search API.
+// Returns plain text (tags stripped) suitable for keyword matching only — NOT for display/citation.
+export async function fetchFullTextEPMC(pmcid, signal) {
+  if (!pmcid) return null;
+  try {
+    await sleep(DELAY);
+    const res = await fetch(`https://www.ebi.ac.uk/europepmc/webservices/rest/${pmcid}/fullTextXML`, { signal });
+    if (!res.ok) return null;
+    const xml = await res.text();
+    return xml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  } catch (e) { if (e.name === 'AbortError') throw e; return null; }
+}
+
 function reconstitute(inv) {
   if (!inv) return '';
   const pos = [];
@@ -54,6 +68,7 @@ export async function queryEuropePMC(term, s, signal) {
     doi: p.doi || 'not reported', url: p.doi ? `https://doi.org/${p.doi}` : 'not reported',
     language: p.language || '', source_type: 'journal',
     pdf_available: p.isOpenAccess === 'Y' ? 'yes' : 'unknown', source_db: 'Europe PMC',
+    pmcid: p.pmcid || null, isOA: p.isOpenAccess === 'Y',
   }));
 }
 
@@ -68,6 +83,7 @@ export async function queryPubMed(term, s, signal) {
     url: p.pmid ? `https://pubmed.ncbi.nlm.nih.gov/${p.pmid}/` : (p.doi ? `https://doi.org/${p.doi}` : 'not reported'),
     language: p.language || '', source_type: 'journal',
     pdf_available: p.isOpenAccess === 'Y' ? 'yes' : 'unknown', source_db: 'PubMed (via Europe PMC)',
+    pmcid: p.pmcid || null, isOA: p.isOpenAccess === 'Y',
   }));
 }
 
@@ -80,13 +96,13 @@ export async function queryBiorxiv(term, s, signal) {
     year: parseInt(p.pubYear) || null, abstract: p.abstractText || '',
     doi: p.doi || 'not reported', url: p.doi ? `https://doi.org/${p.doi}` : 'not reported',
     language: 'en', source_type: 'grey', pdf_available: 'yes', source_db: 'bioRxiv / medRxiv',
+    pmcid: p.pmcid || null, isOA: true,
   }));
 }
 
 // arXiv note: export.arxiv.org blocks CORS from GitHub Pages (no Access-Control-Allow-Origin header).
 // The fetch will fail with a TypeError — we catch it and return null so the search continues.
 // arXiv preprints are covered via Europe PMC (SRC:PPR) and OpenAlex which both index arXiv.
-// When deployed on a real domain with a server-side proxy, direct arXiv queries will work.
 export async function queryArxiv(term, s, signal) {
   try {
     await sleep(DELAY);
@@ -107,7 +123,6 @@ export async function queryArxiv(term, s, signal) {
     }).filter(r => (!s.yearFrom || !r.year || r.year >= s.yearFrom) && (!s.yearTo || !r.year || r.year <= s.yearTo));
   } catch (e) {
     if (e.name === 'AbortError') throw e;
-    // CORS block or network error — return null so search continues; arXiv covered via EPMC/OpenAlex
     return null;
   }
 }
