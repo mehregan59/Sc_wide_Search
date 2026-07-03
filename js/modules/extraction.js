@@ -6,6 +6,8 @@
 // together) — treating the whole field as one concept starves the AI of
 // the separation it needs to be exhaustive. Splitting at the term level
 // fixes that without requiring the user to restructure their Requirements.
+// termEntries() is exported so other modules (aiexport.js) share this
+// same splitting logic instead of reimplementing it separately.
 // ═══════════════════════════════════════════════════════════════
 import { requirements, TEXT_TYPES, SWDReq } from './requirements.js';
 
@@ -14,9 +16,9 @@ function textFields() {
 }
 
 // Flattens every field's comma-separated value into individual term entries.
-// If the same term text appears in more than one field, synonyms generated
+// If the same term text appears in more than one field, results generated
 // for it get applied to all of those fields (safe superset, never a guess).
-function termEntries() {
+export function termEntries() {
   const map = new Map();
   textFields().forEach(f => {
     (f.value || '').split(',').map(v => v.trim()).filter(Boolean).forEach(t => {
