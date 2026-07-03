@@ -4,11 +4,19 @@
 import { state, dlFile, stamp } from './state.js';
 import { requirements, TEXT_TYPES } from './requirements.js';
 
-// Field labels come straight from Requirements — no separate synonym-store module anymore
+// Field labels + their current terms — the prompt needs BOTH. A bare label
+// like "Abstract contains phrase" is a field-type name, not a concept; an
+// AI reading it has nothing to actually check for. The terms are what make
+// the instruction meaningful. CSV column keys still derive from the label
+// alone (unchanged) so mergeAIResults keeps matching correctly.
 function getExtractionFields() {
   return requirements
     .filter(r => r.enabled && TEXT_TYPES.has(r.type) && (r.label || '').trim())
-    .map(r => ({ id: r.id, label: r.label }));
+    .map(r => ({
+      id: r.id,
+      label: r.label,
+      terms: (r.value || '').split(',').map(v => v.trim()).filter(Boolean),
+    }));
 }
 
 function csvCell(v) { return `"${String(v == null ? '' : v).replace(/"/g, '""').replace(/\n/g, ' ')}"`; }
@@ -24,12 +32,14 @@ function leanRows() {
 
 export function buildExtractionPrompt() {
   const fields = getExtractionFields();
-  const fieldCols = fields.map(f => f.label).join(', ');
+  const fieldDescriptions = fields.map(f =>
+    f.terms.length ? `${f.label} (indicated by any of: ${f.terms.join(', ')})` : f.label
+  ).join('; ');
   const cleanCols = fields.map(f => f.label.replace(/[^a-z0-9 ]/gi, '').trim().replace(/\s+/g, '_')).join(',');
   return [
     'You are helping extract structured data from a list of scientific papers.',
     'For EACH row below, retrieve the paper using its DOI or URL (use web browsing/search — do not rely on memory alone),',
-    'then check whether it reports the following: ' + (fieldCols || '(no fields configured)') + '.',
+    'then check whether it reports the following: ' + (fieldDescriptions || '(no fields configured)') + '.',
     '',
     'Return your answer as CSV with EXACTLY this header row, one output row per input paper:',
     `doi,${cleanCols || 'field1'},confidence,evidence`,
