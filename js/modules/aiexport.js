@@ -1,25 +1,22 @@
 // ═══════════════════════════════════════════════════════════════
 // AIEXPORT.JS — batch export for external AI extraction + merge import
+// Asks the AI about each individual TERM (via extraction.js's shared
+// termEntries), then re-aggregates per-term answers back up to the
+// Requirement FIELD level (found beats not-found beats unable-to-access),
+// storing the result keyed by field label — same key export.js already reads.
 // ═══════════════════════════════════════════════════════════════
 import { state, dlFile, stamp } from './state.js';
-import { requirements, TEXT_TYPES } from './requirements.js';
+import { requirements } from './requirements.js';
+import { termEntries } from './extraction.js';
 
-// Field labels + their current terms — the prompt needs BOTH. A bare label
-// like "Abstract contains phrase" is a field-type name, not a concept; an
-// AI reading it has nothing to actually check for. The terms are what make
-// the instruction meaningful. CSV column keys still derive from the label
-// alone (unchanged) so mergeAIResults keeps matching correctly.
-function getExtractionFields() {
-  return requirements
-    .filter(r => r.enabled && TEXT_TYPES.has(r.type) && (r.label || '').trim())
-    .map(r => ({
-      id: r.id,
-      label: r.label,
-      terms: (r.value || '').split(',').map(v => v.trim()).filter(Boolean),
-    }));
-}
-
+function csvSlug(s) { return String(s || '').replace(/[^a-z0-9 ]/gi, '').trim().replace(/\s+/g, '_'); }
 function csvCell(v) { return `"${String(v == null ? '' : v).replace(/"/g, '""').replace(/\n/g, ' ')}"`; }
+
+function fieldLabelMap() {
+  const m = new Map();
+  requirements.forEach(r => m.set(r.id, r.label));
+  return m;
+}
 
 function leanRows() {
   return state.records.map(r => ({
@@ -31,27 +28,29 @@ function leanRows() {
 }
 
 export function buildExtractionPrompt() {
-  const fields = getExtractionFields();
-  const fieldDescriptions = fields.map(f =>
-    f.terms.length ? `${f.label} (indicated by any of: ${f.terms.join(', ')})` : f.label
-  ).join('; ');
-  const cleanCols = fields.map(f => f.label.replace(/[^a-z0-9 ]/gi, '').trim().replace(/\s+/g, '_')).join(',');
+  const entries = termEntries();
+  if (!entries.length) return 'No search parameters configured \u2014 add at least one requirement in Configure first.';
+  const termList = entries.map(e => `- ${e.term}`).join('\n');
+  const cols = entries.map(e => csvSlug(e.term)).join(',');
   return [
     'You are helping extract structured data from a list of scientific papers.',
-    'For EACH row below, retrieve the paper using its DOI or URL (use web browsing/search — do not rely on memory alone),',
-    'then check whether it reports the following: ' + (fieldDescriptions || '(no fields configured)') + '.',
+    'For EACH row (paper) below, retrieve the paper using its DOI or URL (use web browsing/search \u2014 do not rely on memory alone),',
+    'then check SEPARATELY whether it reports each of the following DISTINCT concepts. Treat each one independently \u2014 do not merge them.',
+    '',
+    termList,
     '',
     'Return your answer as CSV with EXACTLY this header row, one output row per input paper:',
-    `doi,${cleanCols || 'field1'},confidence,evidence`,
+    `doi,${cols},evidence`,
     '',
     'Rules:',
-    '- "confidence" must be one of: found, not-found, unable-to-access',
-    '- "evidence" is a short quoted sentence or phrase supporting the value, or blank if not found',
-    '- If you cannot retrieve the paper at all, set confidence to "unable-to-access" and leave field values blank',
-    '- Do not guess values you are not reasonably confident about — leave blank instead',
+    '- Each concept column must contain exactly one of: found, not-found, unable-to-access',
+    '- "unable-to-access" means you could not retrieve the paper at all \u2014 in that case set EVERY concept column to unable-to-access',
+    '- "evidence" is one shared field: for any concept marked "found", include a short quoted phrase prefixed with the concept name,',
+    '  e.g. distribution: "occurrence records were compiled from..."; semicolon-separate if multiple concepts were found',
+    '- Do not guess \u2014 if genuinely unsure for a concept, use not-found rather than found',
     '',
     'IMPORTANT: this only works if your AI tool can actually browse/retrieve the paper text.',
-    'Upload-only tools (like NotebookLM) will NOT work here since no paper text is provided — only DOIs/URLs.',
+    'Upload-only tools (like NotebookLM) will NOT work here since no paper text is provided \u2014 only DOIs/URLs.',
   ].join('\n');
 }
 
@@ -76,21 +75,21 @@ export async function downloadAIExport(batchSizeInput) {
     return;
   }
 
-  if (!window.JSZip) { alert('ZIP library failed to load — try refreshing the page and retrying.'); return; }
+  if (!window.JSZip) { alert('ZIP library failed to load \u2014 try refreshing the page and retrying.'); return; }
   const zip = new window.JSZip();
   batches.forEach((b, i) => {
     const n = String(i + 1).padStart(String(batches.length).length, '0');
     zip.file(`batch_${n}_of_${batches.length}.csv`, toCSV(b));
   });
   zip.file('README.txt', [
-    'SciWide Search — AI extraction batch export',
+    'SciWide Search \u2014 AI extraction batch export',
     `Generated: ${new Date().toISOString()}`,
     `Total records: ${rows.length}`,
     `Batch size: ${size}`,
     `Number of files: ${batches.length}`,
     '',
     'PROMPT (use with each batch file):',
-    '─'.repeat(60),
+    '\u2500'.repeat(60),
     prompt,
   ].join('\n'));
   const blob = await zip.generateAsync({ type: 'blob' });
@@ -153,12 +152,16 @@ function findRecord(doi) {
 }
 
 // Merges parsed AI rows into matching records (by DOI).
-// - empty target field → filled directly
-// - same value already present → collected, user gets ONE batch-level dialog
+// Per-term answers are aggregated to field level: found > not-found > unable-to-access.
+// - empty/unrecognized field result → skipped
+// - same aggregated value already present → collected, user gets ONE batch-level dialog
 // - different value already present → both kept, record flagged with a conflict badge
 export function mergeAIResults(rows) {
-  const fields = getExtractionFields().map(f => f.label);
-  const fieldKeys = fields.map(f => f.toLowerCase().replace(/[^a-z0-9 ]/gi, '').trim().replace(/\s+/g, '_'));
+  const entries = termEntries();
+  const termKeyToEntry = new Map(entries.map(e => [csvSlug(e.term).toLowerCase(), e]));
+  const labelById = fieldLabelMap();
+  const rank = { found: 3, 'not-found': 2, 'unable-to-access': 1 };
+
   let filled = 0, conflicts = 0, unmatched = 0;
   const exactDuplicates = [];
 
@@ -168,20 +171,31 @@ export function mergeAIResults(rows) {
     if (!rec._ai_fields) rec._ai_fields = {};
     if (!rec._ai_conflicts) rec._ai_conflicts = {};
 
-    fields.forEach((label, idx) => {
-      const key = fieldKeys[idx];
-      const val = (row[key] ?? row[label.toLowerCase()] ?? '').trim();
-      if (!val) return;
+    const fieldBest = new Map(); // fieldId -> { status, term }
+    termKeyToEntry.forEach((entry, key) => {
+      const status = (row[key] || '').trim().toLowerCase();
+      if (!rank[status]) return;
+      entry.fieldIds.forEach(fid => {
+        const cur = fieldBest.get(fid);
+        if (!cur || rank[status] > rank[cur.status]) fieldBest.set(fid, { status, term: entry.term });
+      });
+    });
+
+    fieldBest.forEach((info, fid) => {
+      const label = labelById.get(fid);
+      if (!label) return;
+      const val = info.status === 'found' ? `found (${info.term})` : info.status;
+      const evid = (row.evidence || '').trim();
       const existing = rec._ai_fields[label];
       if (!existing) {
-        rec._ai_fields[label] = { value: val, confidence: row.confidence || '', evidence: row.evidence || '', ts: Date.now() };
+        rec._ai_fields[label] = { value: val, confidence: info.status, evidence: evid, ts: Date.now() };
         filled++;
       } else if (existing.value === val) {
         exactDuplicates.push({ record: rec, field: label, value: val });
       } else {
         if (!rec._ai_conflicts[label]) rec._ai_conflicts[label] = [existing];
         if (!rec._ai_conflicts[label].some(c => c.value === val)) {
-          rec._ai_conflicts[label].push({ value: val, confidence: row.confidence || '', evidence: row.evidence || '', ts: Date.now() });
+          rec._ai_conflicts[label].push({ value: val, confidence: info.status, evidence: evid, ts: Date.now() });
         }
         rec._has_conflict = true;
         conflicts++;
@@ -193,7 +207,7 @@ export function mergeAIResults(rows) {
     const skip = confirm(
       `${exactDuplicates.length} field value(s) from this import exactly match values already stored.\n\n` +
       `OK = ignore duplicates (values already correct, nothing to do)\n` +
-      `Cancel = flag those records as "duplicate — check manually"`
+      `Cancel = flag those records as "duplicate \u2014 check manually"`
     );
     if (!skip) exactDuplicates.forEach(d => { d.record._ai_duplicate_flag = true; });
   }
