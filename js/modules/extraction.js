@@ -12,9 +12,14 @@ export function generateSynonymPrompt() {
   if (!fields.length) return '';
   const lines = fields.map(f => `- ${f.label}: currently searching for "${(f.value || '').split(',').map(v => v.trim()).filter(Boolean).join('", "') || '(no terms yet)'}"`);
   return [
-    'I am screening scientific papers and need to detect these concepts even when authors phrase them differently.',
-    'For EACH item below, give me 5-10 alternative words/phrases/synonyms that would also indicate the same concept',
+    'I am building search terms for a systematic literature review (title/abstract screening stage). I need HIGH RECALL —',
+    'as many alternative words and phrases as possible for each concept below, including broader and narrower phrasings',
+    'and terminology commonly used in this field\u2019s literature. Screening favours over-inclusion over missed records.',
+    '',
+    'For EACH item below, generate 15-30 non-overlapping alternative words/phrases that indicate that SAME concept.',
+    'Do not repeat any term already listed as "currently searching for" \u2014 only give NEW terms.',
     '(example: for "GPS coordinates" also accept "sampling location name", "site description", "collection locality").',
+    '',
     'Reply with exactly one line per item in this format: LABEL: term1, term2, term3, ...',
     '',
     ...lines,
