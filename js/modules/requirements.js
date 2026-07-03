@@ -1,11 +1,15 @@
 // ═══════════════════════════════════════════════════════════════
-// REQUIREMENTS.JS — custom multi-requirement filter engine
-// Now supports multiple comma-separated values per requirement,
-// combined with an OR ("any match") or AND ("all must match") operator.
+// REQUIREMENTS.JS — requirement filter engine
+// Multi-value OR/AND matching. Optional full-text fallback: if a record
+// fails on abstract alone AND has open-access full text available, it is
+// re-checked against the full text before being flagged failed. This never
+// removes records — it only widens what counts as a pass. No full-text
+// access → falls straight back to abstract-only behaviour, unchanged.
 // ═══════════════════════════════════════════════════════════════
 import { esc } from './state.js';
+import { fetchFullTextEPMC } from './engines.js';
 
-export const requirements = []; // _SWDRequirements
+export const requirements = [];
 let _reqId = 0;
 
 export const REQ_TYPES = [
@@ -24,71 +28,87 @@ export const REQ_TYPES = [
   { value: 'custom_text',        label: 'Custom rule (text description)' },
 ];
 
-// Types that support multi-value OR/AND matching (free-text contains/equals types)
-const MULTI_VALUE_TYPES = new Set([
-  'abstract_contains','title_contains','any_field_contains',
-  'source_type_is','language_is','category_is',
-]);
+// Types whose value field is the thing synonyms get appended to
+export const TEXT_TYPES = new Set(['abstract_contains', 'title_contains', 'any_field_contains', 'custom_text']);
+const MULTI_VALUE_TYPES = new Set(['abstract_contains','title_contains','any_field_contains','source_type_is','language_is','category_is']);
 
-function parseValues(val) {
-  return (val || '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean);
-}
+function parseValues(val) { return (val || '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean); }
 
-function testMultiValue(haystack, val, op) {
+function testMultiValue(haystack, val, op, fullText) {
   const vals = parseValues(val);
   if (!vals.length) return true;
   const hay = (haystack || '').toLowerCase();
-  return op === 'and' ? vals.every(v => hay.includes(v)) : vals.some(v => hay.includes(v));
+  const abstractPass = op === 'and' ? vals.every(v => hay.includes(v)) : vals.some(v => hay.includes(v));
+  if (abstractPass) return true;
+  if (!fullText) return false;
+  const fh = fullText.toLowerCase();
+  return op === 'and' ? vals.every(v => fh.includes(v)) : vals.some(v => fh.includes(v));
 }
 function testMultiEquals(field, val, op) {
   const vals = parseValues(val);
   if (!vals.length) return true;
   const f = (field || '').toLowerCase();
-  // "equals" with multiple values only makes sense as OR (a field can't equal two things at once for AND)
   return op === 'and' ? vals.every(v => f === v) : vals.some(v => f === v);
 }
 
-export function testRequirement(r, req) {
+// fullText param is optional — only passed in during the async full-text pass
+export function testRequirement(r, req, fullText) {
   if (!req.enabled) return true;
   const ft = [r.full_citation || '', r._abstract || '', r.excerpt || '', r.notes || ''].join(' ');
   const op = req.op === 'and' ? 'and' : 'or';
   switch (req.type) {
-    case 'abstract_contains':   return testMultiValue(r._abstract, req.value, op);
-    case 'title_contains':      return testMultiValue(r.full_citation, req.value, op);
-    case 'any_field_contains':  return testMultiValue(ft, req.value, op);
+    case 'abstract_contains':   return testMultiValue(r._abstract, req.value, op, fullText);
+    case 'title_contains':      return testMultiValue(r.full_citation, req.value, op, fullText);
+    case 'any_field_contains':  return testMultiValue(ft, req.value, op, fullText);
     case 'has_doi':             return !!(r.doi && r.doi !== 'not reported' && r.doi !== '');
     case 'has_coordinates':     return !!(r.coordinates && r.coordinates !== 'not reported');
     case 'has_country':         return !!(r.country && r.country !== 'not reported');
     case 'has_abstract':        return !!(r._abstract && r._abstract.trim().length > 10);
-    case 'year_from': {
-      const val = (req.value || '').trim();
-      return val ? (!r.pub_year || r.pub_year >= parseInt(val)) : true;
-    }
-    case 'year_to': {
-      const val = (req.value || '').trim();
-      return val ? (!r.pub_year || r.pub_year <= parseInt(val)) : true;
-    }
+    case 'year_from': { const val = (req.value || '').trim(); return val ? (!r.pub_year || r.pub_year >= parseInt(val)) : true; }
+    case 'year_to':   { const val = (req.value || '').trim(); return val ? (!r.pub_year || r.pub_year <= parseInt(val)) : true; }
     case 'source_type_is':      return testMultiEquals(r.source_type, req.value, op);
     case 'language_is': {
-      const vals = parseValues(req.value);
-      if (!vals.length) return true;
+      const vals = parseValues(req.value); if (!vals.length) return true;
       const lang = (r.language || '').toLowerCase();
       return op === 'and' ? vals.every(v => lang.startsWith(v)) : vals.some(v => lang.startsWith(v));
     }
-    case 'category_is':         return testMultiEquals(r.category, req.value, op);
-    case 'custom_text':         return true;
-    default:                    return true;
+    case 'category_is': return testMultiEquals(r.category, req.value, op);
+    case 'custom_text': return true;
+    default: return true;
   }
 }
 
+// Sync, abstract-only — original behaviour, unchanged. Used anywhere a full-text pass isn't wanted.
 export function applyRequirements(records) {
   const enabled = requirements.filter(r => r.enabled && r.type !== 'custom_text');
-  if (!enabled.length) return;
+  if (!enabled.length) { records.forEach(r => { r._req_fail = false; r._req_fail_labels = ''; }); return; }
   records.forEach(r => {
     const failed = enabled.filter(req => !testRequirement(r, req));
     r._req_fail = failed.length > 0;
     r._req_fail_labels = failed.map(req => req.label || req.type).join('; ');
   });
+}
+
+// Async — same flag-only result, but records that fail on abstract AND have
+// Europe PMC open-access full text get one fetch + re-check before being flagged.
+// Records without full-text access are unaffected — falls straight back to applyRequirements' behaviour.
+export async function applyRequirementsWithFullText(records, onProgress) {
+  const enabled = requirements.filter(r => r.enabled && r.type !== 'custom_text');
+  if (!enabled.length) { records.forEach(r => { r._req_fail = false; r._req_fail_labels = ''; }); return { fullTextFetched: 0 }; }
+  let fetched = 0;
+  for (let i = 0; i < records.length; i++) {
+    const r = records[i];
+    let failed = enabled.filter(req => !testRequirement(r, req));
+    if (failed.length && r.pmcid && r._isOA) {
+      const full = await fetchFullTextEPMC(r.pmcid);
+      fetched++;
+      if (full) failed = enabled.filter(req => !testRequirement(r, req, full));
+    }
+    r._req_fail = failed.length > 0;
+    r._req_fail_labels = failed.map(req => req.label || req.type).join('; ');
+    if (onProgress) onProgress(i + 1, records.length);
+  }
+  return { fullTextFetched: fetched };
 }
 
 export function renderRequirements() {
@@ -131,6 +151,16 @@ export const SWDReq = {
   setType(id, type) { const r = requirements.find(r => r.id === id); if (r) { r.type = type; renderRequirements(); } },
   setValue(id, val) { const r = requirements.find(r => r.id === id); if (r) r.value = val; },
   setOp(id, op) { const r = requirements.find(r => r.id === id); if (r) r.op = (op === 'and' ? 'and' : 'or'); },
+  // Appends new comma-separated terms to a requirement's value without duplicating existing ones
+  appendValue(id, newTerms) {
+    const r = requirements.find(r => r.id === id);
+    if (!r) return 0;
+    const existing = new Set(parseValues(r.value));
+    const additions = newTerms.filter(t => t && !existing.has(t.trim().toLowerCase()));
+    if (!additions.length) return 0;
+    r.value = [r.value, ...additions].filter(Boolean).join(', ').replace(/^,\s*/, '');
+    return additions.length;
+  },
   serialize() { return requirements.map(r => ({ type: r.type, label: r.label, value: r.value, op: r.op || 'or', enabled: r.enabled })); },
   restore(arr) {
     if (!Array.isArray(arr)) return;

@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // UI.JS — renderTable, renderPaywallPanel, tabs
 // ═══════════════════════════════════════════════════════════════
-import { esc, state, VERIF_CLASS, SCREEN_CLASS } from './state.js';
+import { esc, state, VERIF_CLASS } from './state.js';
 import { getActiveSchema } from './schema.js';
 import { slots } from './slots.js';
 import { scoreSchemaFit, scoreTermRelevance, getExportOptions } from './scores.js';
@@ -24,9 +24,6 @@ export function switchTab(id) {
   }
 }
 
-const STATUS_LABEL = { include: 'Included', maybe: 'Paywall / inconclusive', exclude: 'Excluded' };
-const STATUS_CLASS = { include: 'screen-badge include', maybe: 'screen-badge maybe', exclude: 'screen-badge exclude' };
-
 export function renderTable() {
   const active = getActiveSchema();
   const slotCols = slots.map(sl => ({ field: `slot_${sl.id}`, label: sl.label }));
@@ -43,11 +40,6 @@ export function renderTable() {
   let data = state.records.filter(r => {
     if (state.currentCat !== 'all' && r.category !== state.currentCat) return false;
     if (v && r.verification_status !== v) return false;
-    if (state.screenFilter) {
-      const dec = r._screen_decision || '';
-      if (state.screenFilter === 'unscreened' && dec) return false;
-      if (state.screenFilter !== 'unscreened' && dec !== state.screenFilter) return false;
-    }
     if (reqFilter === 'fail' && !r._req_fail) return false;
     if (reqFilter === 'pass' && r._req_fail) return false;
     if (q) { const h = allCols.map(s => String(r[s.field] || '')).join(' ').toLowerCase(); if (!h.includes(q)) return false; }
@@ -62,13 +54,13 @@ export function renderTable() {
   state.filteredView = data;
 
   const thead = document.getElementById('results-thead');
-  if (thead) thead.innerHTML = '<tr><th style="min-width:150px">Status</th>' +
+  if (thead) thead.innerHTML = '<tr><th style="min-width:70px">Flags</th>' +
     allCols.map(s => `<th>${esc(s.label || s.field)}</th>`).join('') + '</tr>';
 
   const tbody = document.getElementById('results-tbody');
   const totalCols = allCols.length + 1;
   if (!data.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="${totalCols}">${state.records.length === 0 ? 'Run a search, then the Extraction Filter, to see results here.' : 'No records match the filter.'}</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${totalCols}">${state.records.length === 0 ? 'Run a search to see results here.' : 'No records match the filter.'}</td></tr>`;
     document.getElementById('table-footer').textContent = '';
     renderPaginationControls(0);
     return;
@@ -80,26 +72,22 @@ export function renderTable() {
   const pageData = data.slice(startIdx, startIdx + pageSize);
 
   tbody.innerHTML = pageData.map(r => {
-    const dec = r._screen_decision || '';
-    const reason = r._screen_reason || '';
     const reqFail = r._req_fail;
-    const statusBadge = dec
-      ? `<span class="${STATUS_CLASS[dec] || 'screen-badge'}">${esc(STATUS_LABEL[dec] || dec)}</span>`
-      : `<span class="screen-badge unscreened">Not yet checked</span>`;
     const conflictBadge = r._has_conflict ? `<span class="conflict-badge" title="AI-extracted values conflict — see AI Extraction tab">&#9888; conflict</span>` : '';
-    const dupBadge = r._ai_duplicate_flag ? `<span class="dup-badge" title="Flagged as duplicate on import — check manually">&#9868; duplicate</span>` : '';
-    const statusCell = `<td class="screen-cell">${statusBadge}${conflictBadge}${dupBadge}<div style="font-size:10.5px;color:var(--ink-3);margin-top:3px">${esc(reason.slice(0, 90))}</div></td>`;
+    const dupBadge = r._ai_duplicate_flag ? `<span class="dup-badge" title="Flagged as duplicate on import — check manually">&#9868; dup</span>` : '';
+    const reqBadge = reqFail ? `<span class="req-fail-badge" title="${esc(r._req_fail_labels || '')}">\u26a0 req</span>` : `<span class="req-pass-badge">\u2713 req</span>`;
+    const flagsCell = `<td class="screen-cell">${reqBadge}${conflictBadge}${dupBadge}</td>`;
 
-    const rowClass = [dec ? 'row-' + dec : '', reqFail ? 'req-fail-row' : ''].filter(Boolean).join(' ');
+    const rowClass = reqFail ? 'req-fail-row' : '';
 
-    return `<tr class="${rowClass}">` + statusCell + allCols.map(s => {
+    return `<tr class="${rowClass}">` + flagsCell + allCols.map(s => {
       if (s.field === '_schemaFit') return `<td style="font-family:var(--mono);font-size:11px;color:var(--accent)">${scoreSchemaFit(r)}%</td>`;
       if (s.field === '_termRel')  return `<td style="font-family:var(--mono);font-size:11px;color:var(--blue)">${scoreTermRelevance(r)}%</td>`;
       const val = r[s.field];
-      if (s.field === 'category') return `<td><span class="cat-pill cat-${(val || 'e').toLowerCase()}">${val || '?'}</span>${reqFail ? ' <span class="req-fail-badge" title="' + esc(r._req_fail_labels || '') + '">\u26a0 req</span>' : ''}</td>`;
+      if (s.field === 'category') return `<td><span class="cat-pill cat-${(val || 'e').toLowerCase()}">${val || '?'}</span></td>`;
       if (s.field === 'verification_status') return `<td><span class="verif-badge ${VERIF_CLASS[val] || 'verif-secondary'}" style="font-size:10px">${esc(val || '')}</span></td>`;
-      if (s.field === 'screening_decision') return `<td><span class="${SCREEN_CLASS[dec] || 'screen-badge unscreened'}">${esc(dec || '\u2014')}</span></td>`;
-      if (s.field === 'screening_reason')  return `<td style="font-size:11px;color:var(--ink-3)">${esc(reason)}</td>`;
+      if (s.field === 'screening_decision') return `<td style="font-size:11px;color:var(--ink-3)">\u2014</td>`;
+      if (s.field === 'screening_reason')  return `<td style="font-size:11px;color:var(--ink-3)">\u2014</td>`;
       if (s.field === 'doi' && val && val !== 'not reported') return `<td><a class="doi-link" href="https://doi.org/${val}" target="_blank" rel="noopener">DOI \u2192</a></td>`;
       if (s.field === 'url' && val && val !== 'not reported') return `<td><a class="doi-link" href="${esc(val)}" target="_blank" rel="noopener">URL \u2192</a></td>`;
       if (s.field === 'full_citation') return `<td class="truncate" title="${esc(String(val || ''))}">${esc(String(val || '').split('(')[0].trim().slice(0, 40))}</td>`;
@@ -134,16 +122,14 @@ export function renderPaywallPanel() {
 
 export function renderScreeningCounts() {
   const records = state.records;
-  const inc   = records.filter(r => r._screen_decision === 'include').length;
-  const maybe = records.filter(r => r._screen_decision === 'maybe').length;
-  const rem   = state.excludedRecords.length;
-  const un    = records.filter(r => !r._screen_decision).length;
+  const pass = records.filter(r => !r._req_fail).length;
+  const fail = records.filter(r => r._req_fail).length;
+  const conflicts = records.filter(r => r._has_conflict).length;
   const el = document.getElementById('screening-counts');
   if (el) el.innerHTML =
-    `<span class="screen-badge include">${inc} included</span> ` +
-    `<span class="screen-badge maybe">${maybe} paywall/inconclusive</span> ` +
-    `<span class="screen-badge exclude">${rem} removed</span>` +
-    (un ? ` <span class="screen-badge unscreened">${un} not yet checked</span>` : '');
+    `<span class="screen-badge include">${pass} passing all requirements</span> ` +
+    `<span class="screen-badge maybe">${fail} flagged</span>` +
+    (conflicts ? ` <span class="screen-badge exclude">${conflicts} AI conflicts</span>` : '');
 }
 
 export function renderMissingSources() {

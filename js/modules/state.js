@@ -2,7 +2,6 @@
 // STATE.JS — shared state, helpers, constants
 // ═══════════════════════════════════════════════════════════════
 
-// ── Helpers ────────────────────────────────────────────────────
 export function esc(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -32,10 +31,8 @@ export function dlFile(content, name, mime) {
   document.body.removeChild(a);
 }
 
-// ── Shared mutable state ────────────────────────────────────────
 export const state = {
   records: [],
-  excludedRecords: [], // records the extraction filter checked fully and confirmed have NO parameter match — logged, not lost
   selection: new Set(),
   filteredView: [],
   lastSettings: null,
@@ -50,7 +47,6 @@ export const state = {
   catCounts: { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 },
 };
 
-// ── DB labels ───────────────────────────────────────────────────
 export const DB_LABELS = {
   semanticscholar: 'Semantic Scholar', openalex: 'OpenAlex', europepmc: 'Europe PMC',
   crossref: 'Crossref', pubmed: 'PubMed (via Europe PMC)', arxiv: 'arXiv',
@@ -76,28 +72,17 @@ export const SCREEN_CLASS = {
 export const STUB_DBS = new Set(['unpaywall','base','eppo','cabi','usda','jki','naro','caas','rda','bold','ncbi','lens']);
 export const ONCE_DBS = new Set(['gbif','inat']);
 
-// ── PRISMA search log ───────────────────────────────────────────
 export const searchLog = [];
 export function logSearch(db, term, hits, newN, dupes) {
   searchLog.push({ ts: new Date().toISOString(), db, term, hits, new: newN, dupes });
 }
 export function clearSearchLog() { searchLog.length = 0; }
 
-// ── Screening state ─────────────────────────────────────────────
-// Screening is stored DIRECTLY ON the record object (_screen_decision, _screen_reason).
-// Now auto-populated by the Extraction Filter pass, not manual buttons.
 export function screeningKey(r) {
   return (r.doi && r.doi !== 'not reported')
     ? r.doi
     : (r.full_citation || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 80);
 }
-export function getScreening(r) {
-  return { decision: r._screen_decision || '', reason: r._screen_reason || '' };
-}
-export function setScreening(r, decision, reason) {
-  r._screen_decision = decision || '';
-  r._screen_reason = reason || '';
-}
-export function clearScreening() {
-  // no-op — screening is cleared when state.records is replaced at search start
-}
+export function getScreening(r) { return { decision: r._screen_decision || '', reason: r._screen_reason || '' }; }
+export function setScreening(r, decision, reason) { r._screen_decision = decision || ''; r._screen_reason = reason || ''; }
+export function clearScreening() {}
