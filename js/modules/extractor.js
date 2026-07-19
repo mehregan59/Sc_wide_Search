@@ -70,6 +70,11 @@ export function processHit(hit) {
   const sentences = (hit.abstract || '').match(/[^.!?]+[.!?]+/g) || [];
   const excerpt = (sentences.find(s => s.toLowerCase().includes((country || '').toLowerCase())) || sentences[0] || '').trim().slice(0, 400) || 'not reported';
   const r = {
+    // Raw title kept as its own field — full_citation is a formatted composite string
+    // ("Author (Year). Title. DOI:xxx") that other code used to regex-guess titles out
+    // of, which broke (e.g. picking up the author name instead). Consumers should use
+    // r.title directly now instead of re-parsing full_citation.
+    title: hit.title || 'Untitled',
     full_citation: hit._direct
       ? `${hit.authors} (${hit.year || 'n.d.'}). ${hit.title}. ${hit.source_db}.`
       : `${hit.authors || ''} (${hit.year || 'n.d.'}). ${hit.title || 'Untitled'}. DOI: ${doi}`,
