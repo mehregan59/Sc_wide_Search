@@ -21,7 +21,9 @@ function fieldLabelMap() {
 function leanRows() {
   return state.records.map(r => ({
     doi: r.doi && r.doi !== 'not reported' ? r.doi : '',
-    title: (r.full_citation || '').split('(')[0].trim() || (r.full_citation || '').slice(0, 120),
+    // Was: (r.full_citation || '').split('(')[0] — that returns the AUTHOR text
+    // (everything before "(Year)"), mislabeled as title. r.title is the real field now.
+    title: r.title && r.title !== 'Untitled' ? r.title : (r.full_citation || '').slice(0, 120),
     url: r.url && r.url !== 'not reported' ? r.url : (r.doi && r.doi !== 'not reported' ? `https://doi.org/${r.doi}` : ''),
     source_db: r.source_db || '',
   }));
