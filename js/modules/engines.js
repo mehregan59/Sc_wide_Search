@@ -18,7 +18,7 @@ export async function fetchJSON(url, signal, attempt = 0) {
   } catch (e) { if (e.name === 'AbortError') throw e; return null; }
 }
 
-// Full text fetch for Europe PMC open-access records (used by the Extraction Filter).
+// Full text fetch for Europe PMC open-access records (used by the requirements engine).
 // pmcid must include the "PMC" prefix as returned by Europe PMC's search API.
 // Returns plain text (tags stripped) suitable for keyword matching only — NOT for display/citation.
 export async function fetchFullTextEPMC(pmcid, signal) {
@@ -41,8 +41,7 @@ function reconstitute(inv) {
 const mapOAType = t => ({ 'journal-article': 'journal', 'dissertation': 'thesis', 'report': 'report', 'book-chapter': 'book_chapter', 'proceedings-article': 'conference', 'preprint': 'grey' }[t] || 'journal');
 const mapCRType = t => ({ 'journal-article': 'journal', 'book-chapter': 'book_chapter', 'proceedings-article': 'conference', 'dissertation': 'thesis', 'report': 'report', 'posted-content': 'grey' }[t] || 'journal');
 
-let _gbifCache = null, _inatCache = null;
-export function resetEngineCache() { _gbifCache = null; _inatCache = null; }
+export function resetEngineCache() {}
 
 export async function queryOpenAlex(term, s, signal, label) {
   const yr = s.yearFrom && s.yearTo ? `&filter=publication_year:${s.yearFrom}-${s.yearTo}` : '';
@@ -157,12 +156,13 @@ export async function queryZenodo(term, s, signal) {
   }));
 }
 
-export async function queryGBIF(signal) {
-  if (!_gbifCache) {
-    const data = await fetchJSON('https://api.gbif.org/v1/occurrence/search?limit=300', signal);
-    _gbifCache = data ? (data.results || []) : [];
-  }
-  return _gbifCache.map(o => ({
+// FIX: previously called with no search term at all (blanket "?limit=300" — arbitrary
+// global occurrences, unrelated to any search). Now filters GBIF's full-text `q` param
+// by the actual search term, same as every other database.
+export async function queryGBIF(term, s, signal) {
+  const data = await fetchJSON(`https://api.gbif.org/v1/occurrence/search?q=${encodeURIComponent(term)}&limit=300`, signal);
+  const results = data ? (data.results || []) : [];
+  return results.map(o => ({
     title: `GBIF occurrence #${o.key}`, authors: o.institutionCode || o.datasetName || 'GBIF',
     year: o.year || null, abstract: '', doi: 'not reported',
     url: `https://www.gbif.org/occurrence/${o.key}`,
@@ -175,12 +175,11 @@ export async function queryGBIF(signal) {
   }));
 }
 
-export async function queryINat(signal) {
-  if (!_inatCache) {
-    const data = await fetchJSON('https://api.inaturalist.org/v1/observations?quality_grade=research&per_page=200', signal);
-    _inatCache = data ? (data.results || []) : [];
-  }
-  return _inatCache.map(o => ({
+// Same fix as GBIF above — was fetching an unfiltered global feed regardless of search term.
+export async function queryINat(term, s, signal) {
+  const data = await fetchJSON(`https://api.inaturalist.org/v1/observations?q=${encodeURIComponent(term)}&quality_grade=research&per_page=200`, signal);
+  const results = data ? (data.results || []) : [];
+  return results.map(o => ({
     title: `iNaturalist #${o.id}`, authors: o.user?.login || 'iNaturalist user',
     year: o.observed_on ? parseInt(o.observed_on.slice(0, 4)) : null,
     abstract: o.description || '', doi: 'not reported',
@@ -203,8 +202,8 @@ export async function engineQuery(db, term, s, signal) {
       case 'arxiv':           return await queryArxiv(term, s, signal);
       case 'crossref':        return await queryCrossref(term, s, signal);
       case 'zenodo':          return await queryZenodo(term, s, signal);
-      case 'gbif':            return await queryGBIF(signal);
-      case 'inat':            return await queryINat(signal);
+      case 'gbif':            return await queryGBIF(term, s, signal);
+      case 'inat':            return await queryINat(term, s, signal);
       default:                return [];
     }
   } catch (e) { if (e.name === 'AbortError') throw e; return null; }
