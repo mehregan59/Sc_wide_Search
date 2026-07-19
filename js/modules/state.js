@@ -70,7 +70,9 @@ export const SCREEN_CLASS = {
 };
 
 export const STUB_DBS = new Set(['unpaywall','base','eppo','cabi','usda','jki','naro','caas','rda','bold','ncbi','lens']);
-export const ONCE_DBS = new Set(['gbif','inat']);
+// gbif/inat used to live here (queried once, no term filter — that was the bug).
+// They now go through the normal per-term search loop like every other database.
+export const ONCE_DBS = new Set([]);
 
 export const searchLog = [];
 export function logSearch(db, term, hits, newN, dupes) {
