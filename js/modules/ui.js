@@ -36,12 +36,16 @@ export function renderTable() {
   const q = (document.getElementById('res-search')?.value || '').toLowerCase();
   const v = document.getElementById('res-verif')?.value || '';
   const sort = document.getElementById('res-sort')?.value || 'year_desc';
+  // Applies regardless of whether the Term relevance % column is currently shown —
+  // filtering and display are independent. 0 (default) = no filtering, unchanged behaviour.
+  const minRel = parseInt(document.getElementById('res-min-relevance')?.value) || 0;
 
   let data = state.records.filter(r => {
     if (state.currentCat !== 'all' && r.category !== state.currentCat) return false;
     if (v && r.verification_status !== v) return false;
     if (reqFilter === 'fail' && !r._req_fail) return false;
     if (reqFilter === 'pass' && r._req_fail) return false;
+    if (minRel > 0 && scoreTermRelevance(r) < minRel) return false;
     if (q) { const h = allCols.map(s => String(r[s.field] || '')).join(' ').toLowerCase(); if (!h.includes(q)) return false; }
     return true;
   });
@@ -90,6 +94,7 @@ export function renderTable() {
       if (s.field === 'screening_reason')  return `<td style="font-size:11px;color:var(--ink-3)">\u2014</td>`;
       if (s.field === 'doi' && val && val !== 'not reported') return `<td><a class="doi-link" href="https://doi.org/${val}" target="_blank" rel="noopener">DOI \u2192</a></td>`;
       if (s.field === 'url' && val && val !== 'not reported') return `<td><a class="doi-link" href="${esc(val)}" target="_blank" rel="noopener">URL \u2192</a></td>`;
+      if (s.field === 'title') return `<td class="truncate" title="${esc(String(val || ''))}">${esc(String(val || '').slice(0, 60))}</td>`;
       if (s.field === 'full_citation') return `<td class="truncate" title="${esc(String(val || ''))}">${esc(String(val || '').split('(')[0].trim().slice(0, 40))}</td>`;
       if (s.field.startsWith('slot_')) { const sv = val || ''; return `<td class="truncate" title="${esc(sv)}" style="font-size:11px;color:${sv === 'not found' ? 'var(--ink-3)' : 'var(--accent)'}">${esc(sv.slice(0, 50))}</td>`; }
       return `<td class="truncate">${esc(String(val || '\u2014'))}</td>`;
@@ -98,7 +103,8 @@ export function renderTable() {
 
   document.getElementById('table-footer').textContent =
     `Showing ${startIdx + 1}\u2013${Math.min(startIdx + pageSize, totalFiltered)} of ${totalFiltered} records` +
-    (totalFiltered !== state.records.length ? ` (filtered from ${state.records.length})` : '');
+    (totalFiltered !== state.records.length ? ` (filtered from ${state.records.length})` : '') +
+    (minRel > 0 ? ` \u2014 min term relevance ${minRel}%` : '');
   renderPaginationControls(totalFiltered);
 }
 
@@ -114,9 +120,8 @@ export function renderPaywallPanel() {
   if (!data.length) { el.innerHTML = '<div class="paywall-empty">No paywalled papers found. Run a search first.</div>'; return; }
   el.innerHTML = data.map((r, i) => {
     const au = (r.full_citation || '').split('(')[0].trim().slice(0, 80);
-    const m = (r.full_citation || '').match(/\)\.\s+(.+?)\.\s+DOI:/);
-    const title = m ? m[1].slice(0, 200) : (r.full_citation || '').slice(0, 120);
-    return `<div class="paywall-row"><div class="paywall-index">${i + 1}</div><div class="paywall-body"><div class="paywall-title">${esc(title)}</div><div class="paywall-meta">${esc(au)} \u00b7 ${r.pub_year || 'n.d.'} \u00b7 ${esc(r.country || '\u2014')}</div><div class="paywall-doi"><code class="doi-code" id="doi-code-${i}">${esc(r.doi)}</code><button class="btn btn-sm paywall-copy" onclick="copyDOI('${r.doi}','doi-code-${i}')">Copy DOI</button></div><div class="paywall-actions"><a class="paywall-action-link" href="https://doi.org/${esc(r.doi)}" target="_blank" rel="noopener">Publisher \u2192</a> <a class="paywall-action-link" href="https://scholar.google.com/scholar?q=${encodeURIComponent(r.doi)}" target="_blank" rel="noopener">Google Scholar \u2192</a> <a class="paywall-action-link" href="https://europepmc.org/search?query=${encodeURIComponent(r.doi)}" target="_blank" rel="noopener">Europe PMC \u2192</a> <a class="paywall-action-link" href="https://unpaywall.org/${esc(r.doi)}" target="_blank" rel="noopener">Unpaywall \u2192</a></div></div></div>`;
+    const title = r.title && r.title !== 'Untitled' ? r.title : (r.full_citation || '').slice(0, 120);
+    return `<div class="paywall-row"><div class="paywall-index">${i + 1}</div><div class="paywall-body"><div class="paywall-title">${esc(title.slice(0, 200))}</div><div class="paywall-meta">${esc(au)} \u00b7 ${r.pub_year || 'n.d.'} \u00b7 ${esc(r.country || '\u2014')}</div><div class="paywall-doi"><code class="doi-code" id="doi-code-${i}">${esc(r.doi)}</code><button class="btn btn-sm paywall-copy" onclick="copyDOI('${r.doi}','doi-code-${i}')">Copy DOI</button></div><div class="paywall-actions"><a class="paywall-action-link" href="https://doi.org/${esc(r.doi)}" target="_blank" rel="noopener">Publisher \u2192</a> <a class="paywall-action-link" href="https://scholar.google.com/scholar?q=${encodeURIComponent(r.doi)}" target="_blank" rel="noopener">Google Scholar \u2192</a> <a class="paywall-action-link" href="https://europepmc.org/search?query=${encodeURIComponent(r.doi)}" target="_blank" rel="noopener">Europe PMC \u2192</a> <a class="paywall-action-link" href="https://unpaywall.org/${esc(r.doi)}" target="_blank" rel="noopener">Unpaywall \u2192</a></div></div></div>`;
   }).join('');
 }
 
