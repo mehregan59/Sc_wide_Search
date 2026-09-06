@@ -159,11 +159,15 @@ export async function queryZenodo(term, s, signal) {
 // FIX: previously called with no search term at all (blanket "?limit=300" — arbitrary
 // global occurrences, unrelated to any search). Now filters GBIF's full-text `q` param
 // by the actual search term, same as every other database.
+// title is now the actual taxon (scientificName), not a meaningless "#12345" placeholder —
+// this also lets relevance scoring check the real species identity, not the incidental
+// free-text description (see scores.js: occurrence records are scored on title only).
 export async function queryGBIF(term, s, signal) {
   const data = await fetchJSON(`https://api.gbif.org/v1/occurrence/search?q=${encodeURIComponent(term)}&limit=300`, signal);
   const results = data ? (data.results || []) : [];
   return results.map(o => ({
-    title: `GBIF occurrence #${o.key}`, authors: o.institutionCode || o.datasetName || 'GBIF',
+    title: o.scientificName || o.species || `GBIF occurrence #${o.key}`,
+    authors: o.institutionCode || o.datasetName || 'GBIF',
     year: o.year || null, abstract: '', doi: 'not reported',
     url: `https://www.gbif.org/occurrence/${o.key}`,
     country: o.country || 'not reported', region: o.stateProvince || 'not reported',
@@ -176,11 +180,13 @@ export async function queryGBIF(term, s, signal) {
 }
 
 // Same fix as GBIF above — was fetching an unfiltered global feed regardless of search term.
+// title now uses the actual identified taxon, same reasoning as GBIF above.
 export async function queryINat(term, s, signal) {
   const data = await fetchJSON(`https://api.inaturalist.org/v1/observations?q=${encodeURIComponent(term)}&quality_grade=research&per_page=200`, signal);
   const results = data ? (data.results || []) : [];
   return results.map(o => ({
-    title: `iNaturalist #${o.id}`, authors: o.user?.login || 'iNaturalist user',
+    title: o.taxon?.name || o.species_guess || `iNaturalist #${o.id}`,
+    authors: o.user?.login || 'iNaturalist user',
     year: o.observed_on ? parseInt(o.observed_on.slice(0, 4)) : null,
     abstract: o.description || '', doi: 'not reported',
     url: `https://www.inaturalist.org/observations/${o.id}`,
