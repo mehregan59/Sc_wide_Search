@@ -36,6 +36,10 @@ const MULTI_VALUE_TYPES = new Set(['abstract_contains','title_contains','any_fie
 const AND_WARN_THRESHOLD = 5;
 
 function parseValues(val) { return (val || '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean); }
+// Same split, but keeps original casing — used when spinning values off into their
+// own requirement rows, where the text becomes a user-visible label, not just a
+// lowercased match key.
+function rawValues(val) { return (val || '').split(',').map(v => v.trim()).filter(Boolean); }
 
 function testMultiValue(haystack, val, op, fullText) {
   const vals = parseValues(val);
@@ -132,7 +136,9 @@ export function renderRequirements() {
     const valuePlaceholder = isMulti ? 'value1, value2, value3…' : 'value';
     const valCount = isMulti ? parseValues(req.value).length : 0;
     const andWarn = (isMulti && req.op === 'and' && valCount > AND_WARN_THRESHOLD)
-      ? `<div class="req-and-warn">&#9888; AND with ${valCount} values means ALL must appear together in one record — that's very unlikely if these are synonyms of the same idea. If they're synonyms, switch to OR; split them into separate requirements only if they're genuinely different things that must all be present.</div>`
+      ? `<div class="req-and-warn">&#9888; AND with ${valCount} values means ALL must appear together in one record — that's very unlikely if these are synonyms of the same idea.
+          <button class="btn-split-req" onclick="SWDReq.splitIntoSeparate(${req.id})">Split into ${valCount} separate requirements (OR)</button>
+          &mdash; use this if they're synonyms. Only keep AND if they're genuinely different things that must all be present.</div>`
       : '';
     return `<div class="req-row-wrap">
       <div class="req-row ${req.enabled ? 'req-enabled' : 'req-disabled'}" id="req-row-${req.id}">
@@ -170,6 +176,20 @@ export const SWDReq = {
     if (!additions.length) return 0;
     r.value = [r.value, ...additions].filter(Boolean).join(', ').replace(/^,\s*/, '');
     return additions.length;
+  },
+  // Turns one AND field with N values into N separate OR requirements, one per value —
+  // matches "option 2": separate rows = separate concepts, AND-across-rows is already
+  // built into applyRequirementsWithFullText, so no new matching logic is needed.
+  // Each new row starts as a single term; add synonyms to it afterward as normal.
+  splitIntoSeparate(id) {
+    const idx = requirements.findIndex(r => r.id === id);
+    if (idx === -1) return;
+    const r = requirements[idx];
+    const vals = rawValues(r.value);
+    if (vals.length < 2) return;
+    const newRows = vals.map(v => ({ id: ++_reqId, type: r.type, label: v, value: v, op: 'or', enabled: true }));
+    requirements.splice(idx, 1, ...newRows);
+    renderRequirements();
   },
   serialize() { return requirements.map(r => ({ type: r.type, label: r.label, value: r.value, op: r.op || 'or', enabled: r.enabled })); },
   restore(arr) {
