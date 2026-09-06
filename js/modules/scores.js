@@ -3,8 +3,7 @@
 // ═══════════════════════════════════════════════════════════════
 import { LIVE_SCHEMA, customFields } from './schema.js';
 import { state } from './state.js';
-import { termEntries } from './extraction.js';
-import { requirements } from './requirements.js';
+import { requirements, TEXT_TYPES, rawValues, splitSentences, isTermSupported } from './requirements.js';
 
 export function scoreSchemaFit(r) {
   const active = [...LIVE_SCHEMA, ...customFields].filter(f => f.enabled);
@@ -15,46 +14,40 @@ export function scoreSchemaFit(r) {
   return Math.round((filled / active.length) * 100);
 }
 
-function fieldLabelMap() {
-  const m = new Map();
-  requirements.forEach(req => m.set(req.id, req.label || 'Requirement'));
-  return m;
-}
-
 // Groups terms into CONCEPTS instead of scoring every synonym as its own unit.
 // A concept = one Requirement field (all its synonyms are alternatives for the
 // SAME thing — matching any one is enough), plus one extra bucket for Configure's
 // raw Primary/Synonym/Extra keywords. Percent = concepts matched / total concepts.
 //
-// This fixes the earlier flat-term version: a concept with 20 AI-generated synonyms
-// no longer needs all 20 present to "count" — nor does it drag the denominator up
-// and make 100% unreachable. Adding more synonyms to a concept only improves the
-// odds of catching it; it never raises the bar.
+// Matching uses the same "requires support" rule as the pass/fail Requirements
+// engine (see requirements.js): a concept's SEED terms match anywhere; its
+// AI-added synonyms only count if they co-occur with another of the concept's
+// terms in the same sentence. Configure's raw keywords are always seed (the
+// user typed them directly, no AI involved at that stage).
 //
 // Also returns which concepts matched and via which exact term, so the score is
 // checkable against the actual keywords the user typed/approved — not a black box.
 export function scoreTermRelevanceDetail(r) {
-  const hay = [(r.full_citation || ''), (r._abstract || ''), (r.excerpt || '')].join(' ').toLowerCase();
-  const labelById = fieldLabelMap();
+  const hayFull = [(r.full_citation || ''), (r._abstract || ''), (r.excerpt || '')].join(' ');
+  const hayLower = hayFull.toLowerCase();
+  const sentences = splitSentences(hayFull);
   const concepts = [];
 
   const s = state.lastSettings;
   const configTerms = s ? [...(s.primaryTerms || []), ...(s.synonymTerms || []), ...(s.extraTerms || [])].filter(Boolean) : [];
-  if (configTerms.length) concepts.push({ label: 'Configure keywords', terms: configTerms });
+  if (configTerms.length) concepts.push({ label: 'Configure keywords', terms: configTerms, seedSet: new Set(configTerms.map(t => t.toLowerCase())) });
 
-  const fieldTerms = new Map();
-  termEntries().forEach(e => {
-    e.fieldIds.forEach(fid => {
-      if (!fieldTerms.has(fid)) fieldTerms.set(fid, []);
-      fieldTerms.get(fid).push(e.term);
-    });
+  requirements.filter(req => req.enabled && TEXT_TYPES.has(req.type) && (req.label || '').trim()).forEach(req => {
+    const terms = rawValues(req.value);
+    if (!terms.length) return;
+    const seedSet = (req.seedTerms instanceof Set) ? req.seedTerms : new Set(terms.map(t => t.toLowerCase()));
+    concepts.push({ label: req.label, terms, seedSet });
   });
-  fieldTerms.forEach((terms, fid) => concepts.push({ label: labelById.get(fid) || 'Requirement', terms }));
 
   if (!concepts.length) return { percent: 0, concepts: [] };
 
   const scored = concepts.map(c => {
-    const matchedTerm = c.terms.find(t => hay.includes(t.toLowerCase()));
+    const matchedTerm = c.terms.find(t => isTermSupported(t, c.terms, c.seedSet, hayLower, sentences));
     return { label: c.label, matched: !!matchedTerm, matchedTerm: matchedTerm || null, termCount: c.terms.length };
   });
   const matchedCount = scored.filter(c => c.matched).length;
