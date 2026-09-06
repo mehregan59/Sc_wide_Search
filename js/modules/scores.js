@@ -25,10 +25,20 @@ export function scoreSchemaFit(r) {
 // terms in the same sentence. Configure's raw keywords are always seed (the
 // user typed them directly, no AI involved at that stage).
 //
+// Occurrence records (GBIF/iNaturalist, r._direct) are scored on TITLE ONLY
+// (the actual identified taxon, e.g. "Uloborus plumipes") rather than the full
+// description text. Those descriptions are free-text citizen-science field notes
+// that can incidentally mention almost anything (prey species, habitat, weather)
+// without the record being ABOUT that thing — a real, literal mention of your
+// search term in an observation's notes doesn't mean the observation is relevant
+// to your search topic the way a paper's abstract being about it would.
+//
 // Also returns which concepts matched and via which exact term, so the score is
 // checkable against the actual keywords the user typed/approved — not a black box.
 export function scoreTermRelevanceDetail(r) {
-  const hayFull = [(r.full_citation || ''), (r._abstract || ''), (r.excerpt || '')].join(' ');
+  const hayFull = r._direct
+    ? (r.title || '')
+    : [(r.full_citation || ''), (r._abstract || ''), (r.excerpt || '')].join(' ');
   const hayLower = hayFull.toLowerCase();
   const sentences = splitSentences(hayFull);
   const concepts = [];
