@@ -21,7 +21,7 @@ export function connectPresetDeps(deps) {
 export function serializePreset(name) {
   return {
     presetName: name || 'Untitled preset',
-    version: 1,
+    version: 2,
     terms: { primary: lines('cfg-primary'), synonyms: lines('cfg-synonyms'), extra: lines('cfg-extra'), exclude: lines('cfg-exclude') },
     filters: {
       yearFrom: parseInt(document.getElementById('cfg-yr-from').value) || null,
@@ -29,11 +29,15 @@ export function serializePreset(name) {
       maxPerQuery: parseInt(document.getElementById('cfg-max').value) || 500,
       languages: document.getElementById('cfg-langs').value,
       geoReq: 0,
+      minTermRelevance: parseInt(document.getElementById('cfg-min-relevance')?.value) || 0,
     },
+    // FIX (this save): the old "discipline" field read a DOM element (db-discipline-select)
+    // that hasn't existed since disciplines became multi-select checkboxes — it always
+    // saved/restored as 'general' regardless of what was actually checked. "disciplines"
+    // (plural) now captures the real checked set via the correct API.
+    disciplines: SWDDiscipline.getCheckedDisciplines(),
     databases: SWDDiscipline.getChecked(),
-    scope: SWDScope.getTerms(),
     scopeTerms: SWDScope.getTerms(),
-    discipline: document.getElementById('db-discipline-select')?.value || 'general',
     missingSources: lines('cfg-missing'),
     requirements: SWDReq.serialize(),
     slots: SWDSlots.serialize(),
@@ -54,14 +58,28 @@ export function applyPreset(data) {
   if (f.yearTo != null) document.getElementById('cfg-yr-to').value = f.yearTo;
   if (f.maxPerQuery != null) document.getElementById('cfg-max').value = f.maxPerQuery;
   if (f.languages != null) document.getElementById('cfg-langs').value = f.languages;
+  const minRelEl = document.getElementById('cfg-min-relevance');
+  const minRel = f.minTermRelevance || 0;
+  if (minRelEl) minRelEl.value = minRel;
+  state.minTermRelevance = minRel;
   setLines('cfg-missing', data.missingSources);
   if (_renderMissingSources) _renderMissingSources();
-  if (data.discipline) {
-    const sel = document.getElementById('db-discipline-select');
-    if (sel) { sel.value = data.discipline; SWDDiscipline.onDisciplineChange(); }
+
+  // Disciplines FIRST (rebuilds the available-databases panel and its default-on set),
+  // THEN the exact saved database selection overrides those defaults. Order matters —
+  // setDisciplines resets the checked set to defaults, so it must run before this.
+  if (Array.isArray(data.disciplines) && data.disciplines.length) {
+    SWDDiscipline.setDisciplines(data.disciplines);
+  } else if (data.discipline) {
+    // Backward compatibility with presets saved before this fix (singular field, single value)
+    SWDDiscipline.setDisciplines([data.discipline]);
   }
+  if (Array.isArray(data.databases) && data.databases.length) {
+    SWDDiscipline.setCheckedDatabases(data.databases);
+  }
+
   if (Array.isArray(data.scopeTerms)) SWDScope.restore(data.scopeTerms);
-  else if (Array.isArray(data.scope)) SWDScope.restore(data.scope);
+  else if (Array.isArray(data.scope)) SWDScope.restore(data.scope); // legacy field name
   if (data.requirements) SWDReq.restore(data.requirements);
   if (data.slots) SWDSlots.restore(data.slots);
   if (data.schema) {
