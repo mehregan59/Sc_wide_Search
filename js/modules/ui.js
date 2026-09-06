@@ -4,7 +4,7 @@
 import { esc, state, VERIF_CLASS } from './state.js';
 import { getActiveSchema } from './schema.js';
 import { slots } from './slots.js';
-import { scoreSchemaFit, scoreTermRelevance, getExportOptions } from './scores.js';
+import { scoreSchemaFit, scoreTermRelevance, scoreTermRelevanceDetail, getExportOptions } from './scores.js';
 import { renderPaginationControls } from './selection.js';
 
 let _lastOpenAccordion = null;
@@ -22,6 +22,14 @@ export function switchTab(id) {
     const g = document.getElementById(_lastOpenAccordion);
     if (g) g.classList.add('open');
   }
+}
+
+function relevanceTooltip(r) {
+  const { concepts } = scoreTermRelevanceDetail(r);
+  if (!concepts.length) return 'No search parameters configured yet.';
+  return concepts.map(c =>
+    c.matched ? `\u2713 ${c.label} \u2014 matched via "${c.matchedTerm}"` : `\u2717 ${c.label} \u2014 no match (${c.termCount} term(s) checked)`
+  ).join('\n');
 }
 
 export function renderTable() {
@@ -86,7 +94,7 @@ export function renderTable() {
 
     return `<tr class="${rowClass}">` + flagsCell + allCols.map(s => {
       if (s.field === '_schemaFit') return `<td style="font-family:var(--mono);font-size:11px;color:var(--accent)">${scoreSchemaFit(r)}%</td>`;
-      if (s.field === '_termRel')  return `<td style="font-family:var(--mono);font-size:11px;color:var(--blue)">${scoreTermRelevance(r)}%</td>`;
+      if (s.field === '_termRel')  return `<td style="font-family:var(--mono);font-size:11px;color:var(--blue);cursor:help" title="${esc(relevanceTooltip(r))}">${scoreTermRelevance(r)}%</td>`;
       const val = r[s.field];
       if (s.field === 'category') return `<td><span class="cat-pill cat-${(val || 'e').toLowerCase()}">${val || '?'}</span></td>`;
       if (s.field === 'verification_status') return `<td><span class="verif-badge ${VERIF_CLASS[val] || 'verif-secondary'}" style="font-size:10px">${esc(val || '')}</span></td>`;
