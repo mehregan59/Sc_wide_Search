@@ -28,7 +28,7 @@
     .synonym-modal-box .hint{font-size:12px;color:var(--ink-3);margin-bottom:.75rem;line-height:1.6}
     .synonym-modal-box textarea{width:100%;font-family:var(--mono);font-size:12px;padding:8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--paper);color:var(--ink);resize:vertical;margin-bottom:.75rem}
     .synonym-modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:.5rem}
-    #res-min-relevance{width:150px}
+    #cfg-min-relevance{width:100%}
   </style>
 </head>
 <body>
@@ -147,6 +147,10 @@
           <div class="field field-sm"><label for="cfg-max">Max / query</label><input type="number" id="cfg-max" value="500" min="10" max="5000" /></div>
         </div>
         <div class="field"><label for="cfg-langs">Languages <span class="label-hint">(ISO 639-1, comma-separated)</span></label><input type="text" id="cfg-langs" placeholder="en,de,fr,it,es,ja,zh" /></div>
+        <div class="field">
+          <label for="cfg-min-relevance">Min term relevance % <span class="label-hint" title="Checked live as each record streams in during the search. Records scoring below this are discarded immediately — never added to Results. 0 = disabled (default). 100 = every keyword/synonym must match.">&#9432; (0&ndash;100)</span></label>
+          <input type="number" id="cfg-min-relevance" min="0" max="100" step="1" value="0" placeholder="0 = disabled" />
+        </div>
         <div class="req-panel">
           <div class="req-panel-header">
             <h2>Search requirements</h2>
@@ -246,7 +250,7 @@
   </section>
   <!-- RESULTS -->
   <section class="tab-panel" id="panel-results">
-    <div class="panel-title"><h1>Results</h1><p>Every record found stays here &mdash; nothing is removed. Records failing one or more requirements are flagged (badge + row highlight), not hidden. Filter, then download directly below, or use the full multi-format Export tab.</p></div>
+    <div class="panel-title"><h1>Results</h1><p>Every record found stays here &mdash; nothing is removed. Records failing one or more requirements are flagged (badge + row highlight), not hidden. Records below your Configure &ldquo;Min term relevance %&rdquo; threshold were already discarded during search and never appear here. Filter, then download directly below, or use the full multi-format Export tab.</p></div>
     <div id="screening-counts"></div>
     <div class="results-toolbar">
       <div class="cat-filter-row"><button class="cat-filter-btn active" data-cat="all">All</button><button class="cat-filter-btn" data-cat="A"><span class="cat-pill cat-a">A</span> Primary</button><button class="cat-filter-btn" data-cat="B"><span class="cat-pill cat-b">B</span> Sampling</button><button class="cat-filter-btn" data-cat="C"><span class="cat-pill cat-c">C</span> Lab strain</button><button class="cat-filter-btn" data-cat="D"><span class="cat-pill cat-d">D</span> Review/model</button><button class="cat-filter-btn" data-cat="E"><span class="cat-pill cat-e">E</span> No location</button><button class="cat-filter-btn" data-cat="F"><span class="cat-pill cat-f">F</span> Pre-1980</button></div>
@@ -255,7 +259,6 @@
         <select id="res-req-filter"><option value="">All (pass &amp; fail)</option><option value="pass">Passing requirements</option><option value="fail">Failing requirements</option></select>
         <select id="res-verif"><option value="">All verification statuses</option><option>Verified</option><option>Partly verified</option><option>Needs manual check</option><option>Secondary citation only</option><option>No usable location</option></select>
         <select id="res-sort"><option value="year_desc">Year &darr;</option><option value="year_asc">Year &uarr;</option><option value="country_asc">Country A&ndash;Z</option><option value="verif">Verification</option></select>
-        <input type="number" id="res-min-relevance" min="0" max="100" step="1" placeholder="Min relevance %" title="Hide records below this Term relevance % (0 = show all, default). Type any value 0-100. Term relevance now checks both your Configure keywords AND every term/synonym in your Requirements." />
       </div>
       <div class="search-filter-row">
         <button class="btn btn-primary btn-sm" id="res-download-csv">&#11015; Download CSV (filtered)</button>
@@ -295,7 +298,7 @@
       <div class="about-main">
         <div class="donate-card"><h2>&#x2665; Support this project</h2><p>SciWide Search is free to use and will stay that way. If it saved you time on a literature search, a small donation helps cover the time spent maintaining it.</p><a class="donate-btn" href="https://www.paypal.com/donate/?hosted_button_id=4AMEK5KTQHHR4" target="_blank" rel="noopener">Donate via PayPal &rarr;</a></div>
         <div class="about-section"><h2>Purpose</h2><p>SciWide Search is an open-source tool for systematically collecting and structuring records from academic literature, grey literature, and biodiversity databases. It supports PRISMA-style systematic reviews, meta-analyses, and global distribution mapping across any research topic.</p></div>
-        <div class="about-section"><h2>Workflow</h2><p>1. <strong>Configure</strong> a search and define your search parameters as Requirements (use the AI synonym button to widen them). 2. <strong>Run</strong> the search &mdash; requirements are checked automatically afterward, with a full-text fallback for open-access records. 3. Optionally use <strong>AI Extraction</strong> to hand off DOIs to a browsing-capable AI for a second pass. 4. Review everything in <strong>Results</strong> (nothing is ever removed, only flagged) and download from <strong>Export</strong>.</p></div>
+        <div class="about-section"><h2>Workflow</h2><p>1. <strong>Configure</strong> a search: define terms, requirements (use the AI synonym button to widen them), and optionally a minimum term relevance %. 2. <strong>Run</strong> the search &mdash; relevance filtering happens live as each record streams in; requirements are checked automatically afterward, with a full-text fallback for open-access records. 3. Optionally use <strong>AI Extraction</strong> to hand off DOIs to a browsing-capable AI for a second pass. 4. Review everything in <strong>Results</strong> (nothing is flagged-and-removed, only flagged) and download from <strong>Export</strong>.</p></div>
         <div class="about-section"><h2>Output categories</h2><dl class="cat-dl"><dt><span class="cat-pill cat-a">A</span> Primary location records</dt><dd>Original collection, trapping, detection, sequencing, or monitoring.</dd><dt><span class="cat-pill cat-b">B</span> Useful sampling locations</dt><dd>Confirmed presence but not first records.</dd><dt><span class="cat-pill cat-c">C</span> Lab / experimental strain origin</dt><dd>Geographic origin of laboratory colonies or field material.</dd><dt><span class="cat-pill cat-d">D</span> Modelling / review</dt><dd>Secondary geographic information from models and reviews.</dd><dt><span class="cat-pill cat-e">E</span> No usable location</dt><dd>Mentions the topic but no extractable location.</dd><dt><span class="cat-pill cat-f">F</span> Pre-1980 historical records</dt><dd>Historical records before 1980.</dd></dl></div>
         <div class="about-section"><h2>Cite this tool</h2><div class="citation-box">Ebrahimi, M. (2026). SciWide Search [Software]. https://github.com/mehregan59/Sc_wide_Search</div><button class="btn btn-ghost" onclick="copyCitation(this)">Copy citation</button></div>
         <div class="about-section"><h2>Creator</h2><p><strong>Mehregan Ebrahimi</strong><br>GitHub: <a href="https://github.com/mehregan59" target="_blank" rel="noopener">github.com/mehregan59</a><br>Email: <em>mehregan.ebrahimi@gmail.com</em></p></div>
