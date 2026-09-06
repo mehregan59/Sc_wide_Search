@@ -186,6 +186,14 @@ export const SWDDiscipline = {
     renderDisciplineSelector();
     SWDDiscipline.syncToSettings();
   },
+  // Overrides the checked database list directly (e.g. restoring an exact preset
+  // selection), rather than falling back to a discipline's default-on set.
+  setCheckedDatabases(ids) {
+    if (!Array.isArray(ids) || !ids.length) return;
+    _currentDisciplineChecked = new Set(ids);
+    renderDisciplineSelector();
+    SWDDiscipline.syncToSettings();
+  },
   requestNewDB() {
     const body = `Hi Mehregan,\n\nI would like to request a new database connector.\n\nDatabase name: \nURL / API docs: \nFree public API: \nDiscipline(s): \nWhy useful: \n\nThank you!`;
     window.open(`mailto:?subject=${encodeURIComponent('SciWide Search — Database connector request')}&body=${encodeURIComponent(body)}`);
