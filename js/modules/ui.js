@@ -36,9 +36,9 @@ export function renderTable() {
   const q = (document.getElementById('res-search')?.value || '').toLowerCase();
   const v = document.getElementById('res-verif')?.value || '';
   const sort = document.getElementById('res-sort')?.value || 'year_desc';
-  // Applies regardless of whether the Term relevance % column is currently shown —
-  // filtering and display are independent. 0 (default) = no filtering, unchanged behaviour.
-  const minRel = parseInt(document.getElementById('res-min-relevance')?.value) || 0;
+  // Set in Configure ("Min term relevance %"), applied automatically here.
+  // 0 (default) = no filtering, unchanged behaviour.
+  const minRel = state.minTermRelevance || 0;
 
   let data = state.records.filter(r => {
     if (state.currentCat !== 'all' && r.category !== state.currentCat) return false;
