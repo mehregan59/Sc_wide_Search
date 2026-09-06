@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════════════
 import { esc, dlFile, stamp, lines, state, searchLog, DB_LABELS } from './state.js';
 import { getActiveSchema, LIVE_SCHEMA, customFields } from './schema.js';
-import { scoreSchemaFit, scoreTermRelevance, getExportOptions } from './scores.js';
+import { scoreSchemaFit, scoreTermRelevance, scoreTermRelevanceDetail, getExportOptions } from './scores.js';
 import { requirements, TEXT_TYPES } from './requirements.js';
 
 function getPaywalled() {
@@ -47,10 +47,18 @@ export function exportCSV(cat) {
   dlFile([headers.join(','), ...rows].join('\r\n'), `sciwide_records${cat !== 'all' ? '_cat' + cat : ''}_${stamp()}.csv`, 'text/csv;charset=utf-8;');
 }
 
+// relevance_detail lists each concept checked (a Requirement field, or "Configure keywords"),
+// whether it matched, and the EXACT term/synonym that triggered the match — so the percentage
+// is checkable against the user's own keywords, not a black-box number.
+function relevanceDetailForJSON(r) {
+  const { percent, concepts } = scoreTermRelevanceDetail(r);
+  return { percent, concepts: concepts.map(c => ({ concept: c.label, matched: c.matched, matched_via: c.matchedTerm, synonym_count: c.termCount })) };
+}
+
 export function exportJSON() {
   if (!state.records.length) { alert('No records.'); return; }
   const out = state.records.map(r => ({
-    ...r, abstract: r._abstract || null, schema_fit_pct: scoreSchemaFit(r), term_relevance_pct: scoreTermRelevance(r),
+    ...r, abstract: r._abstract || null, schema_fit_pct: scoreSchemaFit(r), term_relevance: relevanceDetailForJSON(r),
     requirements_passed: !r._req_fail, requirements_failed_labels: r._req_fail_labels || '',
     ai_fields: r._ai_fields || null, ai_conflicts: r._ai_conflicts || null,
   }));
@@ -75,7 +83,7 @@ export function exportFilteredCSV() {
 export function exportFilteredJSON() {
   const data = state.filteredView && state.filteredView.length ? state.filteredView : state.records;
   if (!data.length) { alert('No records match the current filters.'); return; }
-  const out = data.map(r => ({ ...r, ai_fields: r._ai_fields || null, ai_conflicts: r._ai_conflicts || null }));
+  const out = data.map(r => ({ ...r, term_relevance: relevanceDetailForJSON(r), ai_fields: r._ai_fields || null, ai_conflicts: r._ai_conflicts || null }));
   dlFile(JSON.stringify(out, null, 2), `sciwide_results_filtered_${stamp()}.json`, 'application/json');
 }
 
