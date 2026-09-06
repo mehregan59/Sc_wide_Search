@@ -217,6 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('res-verif')?.addEventListener('change', renderTable);
   document.getElementById('res-sort')?.addEventListener('change', renderTable);
   document.getElementById('res-req-filter')?.addEventListener('change', renderTable);
+  document.getElementById('res-min-relevance')?.addEventListener('input', renderTable);
   document.querySelectorAll('.cat-filter-btn').forEach(btn => btn.addEventListener('click', () => {
     document.querySelectorAll('.cat-filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active'); state.currentCat = btn.dataset.cat; renderTable();
