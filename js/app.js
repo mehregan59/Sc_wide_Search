@@ -163,6 +163,12 @@ document.addEventListener('DOMContentLoaded', () => {
     else alert('No matching requirement labels found in that reply \u2014 check the format matches "Label: term1, term2, ...".');
   });
 
+  // ── Min term relevance % (Configure) ─────────────────────────────
+  document.getElementById('cfg-min-relevance')?.addEventListener('input', e => {
+    state.minTermRelevance = parseInt(e.target.value) || 0;
+    if (state.records.length) renderTable();
+  });
+
   document.getElementById('btn-run')?.addEventListener('click', guardedStartSearch);
   document.getElementById('btn-stop')?.addEventListener('click', () => { if (state.abortCtrl) state.abortCtrl.abort(); });
   document.getElementById('btn-add-term')?.addEventListener('click', addMidTerm);
@@ -217,7 +223,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('res-verif')?.addEventListener('change', renderTable);
   document.getElementById('res-sort')?.addEventListener('change', renderTable);
   document.getElementById('res-req-filter')?.addEventListener('change', renderTable);
-  document.getElementById('res-min-relevance')?.addEventListener('input', renderTable);
   document.querySelectorAll('.cat-filter-btn').forEach(btn => btn.addEventListener('click', () => {
     document.querySelectorAll('.cat-filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active'); state.currentCat = btn.dataset.cat; renderTable();
@@ -287,7 +292,7 @@ async function startSearch() {
   resetSeen();
   resetEngineCache();
   clearSearchLog();
-  state.stats = { queries: 0, raw: 0, dedup: 0, records: 0, noloc: 0, errors: 0, skipped: 0 };
+  state.stats = { queries: 0, raw: 0, dedup: 0, records: 0, noloc: 0, errors: 0, skipped: 0, filteredByRelevance: 0 };
   Object.keys(state.catCounts).forEach(k => state.catCounts[k] = 0);
   document.getElementById('log-box').innerHTML = '';
   setProgress(0, 'Initialising\u2026');
@@ -318,21 +323,28 @@ async function startSearch() {
   logMsg(`Search started \u2014 ${searchDBs.length} search DBs \u00d7 ${allTerms.length} terms + ${occDBs.length} occurrence DBs`);
   if (stubDBs.length) logMsg(`Stubs (not yet wired): ${stubDBs.map(d => DB_LABELS[d] || d).join(', ')}`, 'warn');
   if (s.yearFrom || s.yearTo) logMsg(`Year range: ${s.yearFrom || 'open'}\u2013${s.yearTo || 'open'}`);
+  if (state.minTermRelevance > 0) logMsg(`Min term relevance filter active: ${state.minTermRelevance}% \u2014 records scoring below this are discarded during search, not just hidden.`, 'warn');
 
+  // Checked live, per record, as each hit is processed — the term list (Configure
+  // keywords + Requirements/synonyms) is already known before the search starts, so
+  // there's no need to wait for the whole search to finish. Discarded records are
+  // counted (stats.filteredByRelevance) but never added to state.records.
   async function processResults(db, term, hits) {
     state.stats.raw += hits.length;
-    let n = 0, dupes = 0;
+    let n = 0, dupes = 0, filteredOut = 0;
     for (const h of hits) {
       for (const r of processHit(h)) {
         if (isDuplicate(r)) { dupes++; continue; }
+        if (state.minTermRelevance > 0 && scoreTermRelevance(r) < state.minTermRelevance) { filteredOut++; continue; }
         state.records.push(r);
         n++; state.stats.dedup++;
         if (r.category === 'E') state.stats.noloc++;
         else { state.stats.records++; state.catCounts[r.category] = (state.catCounts[r.category] || 0) + 1; }
       }
     }
+    state.stats.filteredByRelevance += filteredOut;
     logSearch(db, term, hits.length, n, dupes);
-    return { n, dupes };
+    return { n, dupes, filteredOut };
   }
 
   for (const db of occDBs) {
@@ -357,9 +369,9 @@ async function startSearch() {
         const hits = await engineQuery(db, term, s, signal);
         if (hits === null) { logMsg(`  \u26a0 ${label} unreachable \u2014 skipped`, 'warn'); state.stats.skipped++; }
         else {
-          const { n, dupes } = await processResults(db, term, hits);
+          const { n, dupes, filteredOut } = await processResults(db, term, hits);
           if (hits.length === 0) logMsg(`  \u2192 0 results`, 'warn');
-          else logMsg(`  \u2192 ${hits.length} hits \u00b7 ${n} new \u00b7 ${dupes} dupes`, 'ok');
+          else logMsg(`  \u2192 ${hits.length} hits \u00b7 ${n} new \u00b7 ${dupes} dupes${filteredOut ? ` \u00b7 ${filteredOut} below relevance threshold` : ''}`, 'ok');
         }
       } catch (e) { if (e.name === 'AbortError') break; state.stats.errors++; logMsg(`  \u2716 ${label}: ${e.message}`, 'err'); }
       updateStats(); done++; setProgress((done / total) * 100, `${label} \u00b7 "${term.slice(0, 28)}"`);
@@ -382,7 +394,7 @@ async function startSearch() {
   setStatus(stopped ? 'stopped' : 'done', stopped ? 'Stopped' : 'Done');
   logMsg(stopped
     ? `Stopped. ${state.records.length} records.`
-    : `Complete \u2014 ${state.records.length} records \u00b7 ${state.stats.errors} errors \u00b7 ${state.stats.skipped} skipped`,
+    : `Complete \u2014 ${state.records.length} records \u00b7 ${state.stats.errors} errors \u00b7 ${state.stats.skipped} skipped${state.stats.filteredByRelevance ? ` \u00b7 ${state.stats.filteredByRelevance} discarded below relevance threshold` : ''}`,
     stopped ? 'warn' : 'ok');
   state.isRunning = false;
   document.getElementById('btn-run').disabled = false;
