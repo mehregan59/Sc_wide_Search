@@ -5,6 +5,16 @@
 // re-checked against the full text before being flagged failed. This never
 // removes records — it only widens what counts as a pass. No full-text
 // access → falls straight back to abstract-only behaviour, unchanged.
+//
+// "Requires support" matching: every term has a provenance — SEED (typed
+// by hand) or AI-ADDED (from the synonym-generation flow). Seed terms match
+// anywhere, as before. AI-added terms only count if they appear in the SAME
+// SENTENCE as another term for that same concept — this catches cases like
+// "pomace fly" (an AI synonym for Drosophila melanogaster) matching inside
+// "olive pomace fly ash" with nothing else insect-related nearby: an
+// isolated coincidental match, not a genuine one. Requirements created
+// before this feature have no recorded provenance, so all of their terms
+// are treated as seed (unchanged behaviour) until new synonyms are added.
 // ═══════════════════════════════════════════════════════════════
 import { esc } from './state.js';
 import { fetchFullTextEPMC } from './engines.js';
@@ -36,20 +46,49 @@ const MULTI_VALUE_TYPES = new Set(['abstract_contains','title_contains','any_fie
 const AND_WARN_THRESHOLD = 5;
 
 function parseValues(val) { return (val || '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean); }
-// Same split, but keeps original casing — used when spinning values off into their
-// own requirement rows, where the text becomes a user-visible label, not just a
-// lowercased match key.
-function rawValues(val) { return (val || '').split(',').map(v => v.trim()).filter(Boolean); }
+// Same split, but keeps original casing — used wherever the text becomes user-visible
+// (new requirement labels) or needs case-preserved comparison in isTermSupported.
+export function rawValues(val) { return (val || '').split(',').map(v => v.trim()).filter(Boolean); }
 
-function testMultiValue(haystack, val, op, fullText) {
-  const vals = parseValues(val);
-  if (!vals.length) return true;
-  const hay = (haystack || '').toLowerCase();
-  const abstractPass = op === 'and' ? vals.every(v => hay.includes(v)) : vals.some(v => hay.includes(v));
-  if (abstractPass) return true;
+// Splits text into rough sentences. Good enough for co-occurrence checking — doesn't
+// need to be linguistically perfect, just consistent between requirement matching and
+// relevance scoring (both import this same function).
+export function splitSentences(text) {
+  if (!text) return [];
+  const parts = text.match(/[^.!?]+[.!?]*/g);
+  return (parts && parts.length) ? parts : [text];
+}
+
+// A term matches if: it's a SEED term and appears anywhere in the haystack, OR it's an
+// AI-added term (not in seedSet) and appears in the same sentence as at least one other
+// term from the same concept. seedSet holding every term (or being absent) is the safe
+// legacy fallback — behaves exactly like the old "match anywhere" rule.
+export function isTermSupported(term, allTerms, seedSet, hayLower, sentences) {
+  const tl = term.toLowerCase();
+  if (!seedSet || seedSet.has(tl)) {
+    return hayLower.includes(tl);
+  }
+  return sentences.some(s => {
+    const sl = s.toLowerCase();
+    if (!sl.includes(tl)) return false;
+    return allTerms.some(other => other.toLowerCase() !== tl && sl.includes(other.toLowerCase()));
+  });
+}
+
+function testMultiValue(haystack, req, op, fullText) {
+  const terms = rawValues(req.value);
+  if (!terms.length) return true;
+  const seedSet = (req.seedTerms instanceof Set) ? req.seedTerms : new Set(terms.map(t => t.toLowerCase()));
+  const check = (text) => {
+    if (!text) return false;
+    const hayLower = text.toLowerCase();
+    const sentences = splitSentences(text);
+    const results = terms.map(t => isTermSupported(t, terms, seedSet, hayLower, sentences));
+    return op === 'and' ? results.every(Boolean) : results.some(Boolean);
+  };
+  if (check(haystack)) return true;
   if (!fullText) return false;
-  const fh = fullText.toLowerCase();
-  return op === 'and' ? vals.every(v => fh.includes(v)) : vals.some(v => fh.includes(v));
+  return check(fullText);
 }
 function testMultiEquals(field, val, op) {
   const vals = parseValues(val);
@@ -64,9 +103,9 @@ export function testRequirement(r, req, fullText) {
   const ft = [r.full_citation || '', r._abstract || '', r.excerpt || '', r.notes || ''].join(' ');
   const op = req.op === 'and' ? 'and' : 'or';
   switch (req.type) {
-    case 'abstract_contains':   return testMultiValue(r._abstract, req.value, op, fullText);
-    case 'title_contains':      return testMultiValue(r.full_citation, req.value, op, fullText);
-    case 'any_field_contains':  return testMultiValue(ft, req.value, op, fullText);
+    case 'abstract_contains':   return testMultiValue(r._abstract, req, op, fullText);
+    case 'title_contains':      return testMultiValue(r.full_citation, req, op, fullText);
+    case 'any_field_contains':  return testMultiValue(ft, req, op, fullText);
     case 'has_doi':             return !!(r.doi && r.doi !== 'not reported' && r.doi !== '');
     case 'has_coordinates':     return !!(r.coordinates && r.coordinates !== 'not reported');
     case 'has_country':         return !!(r.country && r.country !== 'not reported');
@@ -158,20 +197,27 @@ export const SWDReq = {
   add(type, label, value) {
     const t = type || 'abstract_contains';
     const tDef = REQ_TYPES.find(x => x.value === t);
-    requirements.push({ id: ++_reqId, type: t, label: label || (tDef?.label || 'New requirement'), value: value || '', op: 'or', enabled: true });
+    const v = value || '';
+    // Manually entered at creation time — trusted (seed), matches anywhere.
+    requirements.push({ id: ++_reqId, type: t, label: label || (tDef?.label || 'New requirement'), value: v, op: 'or', enabled: true, seedTerms: new Set(parseValues(v)) });
     renderRequirements();
   },
   remove(id) { requirements.splice(requirements.findIndex(r => r.id === id), 1); renderRequirements(); },
   toggle(id, val) { const r = requirements.find(r => r.id === id); if (r) { r.enabled = val; renderRequirements(); } },
   rename(id, label) { const r = requirements.find(r => r.id === id); if (r) r.label = label; },
   setType(id, type) { const r = requirements.find(r => r.id === id); if (r) { r.type = type; renderRequirements(); } },
-  setValue(id, val) { const r = requirements.find(r => r.id === id); if (r) { r.value = val; renderRequirements(); } },
+  // A full manual retype/edit of the field is trusted in its entirety — the user is
+  // vouching for every value currently there, so it resets to all-seed.
+  setValue(id, val) { const r = requirements.find(r => r.id === id); if (r) { r.value = val; r.seedTerms = new Set(parseValues(val)); renderRequirements(); } },
   setOp(id, op) { const r = requirements.find(r => r.id === id); if (r) { r.op = (op === 'and' ? 'and' : 'or'); renderRequirements(); } },
-  // Appends new comma-separated terms to a requirement's value without duplicating existing ones
+  // Appends new comma-separated terms to a requirement's value without duplicating existing ones.
+  // These additions are deliberately NOT added to seedTerms — they're AI-generated and
+  // require same-sentence corroboration from another term before counting as a match.
   appendValue(id, newTerms) {
     const r = requirements.find(r => r.id === id);
     if (!r) return 0;
     const existing = new Set(parseValues(r.value));
+    if (!r.seedTerms) r.seedTerms = new Set(existing); // legacy requirement: lock in current terms as seed first
     const additions = newTerms.filter(t => t && !existing.has(t.trim().toLowerCase()));
     if (!additions.length) return 0;
     r.value = [r.value, ...additions].filter(Boolean).join(', ').replace(/^,\s*/, '');
@@ -180,22 +226,31 @@ export const SWDReq = {
   // Turns one AND field with N values into N separate OR requirements, one per value —
   // matches "option 2": separate rows = separate concepts, AND-across-rows is already
   // built into applyRequirementsWithFullText, so no new matching logic is needed.
-  // Each new row starts as a single term; add synonyms to it afterward as normal.
+  // Each new row's single value becomes its own seed term.
   splitIntoSeparate(id) {
     const idx = requirements.findIndex(r => r.id === id);
     if (idx === -1) return;
     const r = requirements[idx];
     const vals = rawValues(r.value);
     if (vals.length < 2) return;
-    const newRows = vals.map(v => ({ id: ++_reqId, type: r.type, label: v, value: v, op: 'or', enabled: true }));
+    const newRows = vals.map(v => ({ id: ++_reqId, type: r.type, label: v, value: v, op: 'or', enabled: true, seedTerms: new Set([v.toLowerCase()]) }));
     requirements.splice(idx, 1, ...newRows);
     renderRequirements();
   },
-  serialize() { return requirements.map(r => ({ type: r.type, label: r.label, value: r.value, op: r.op || 'or', enabled: r.enabled })); },
+  serialize() {
+    return requirements.map(r => ({
+      type: r.type, label: r.label, value: r.value, op: r.op || 'or', enabled: r.enabled,
+      seedTerms: [...(r.seedTerms || parseValues(r.value))],
+    }));
+  },
   restore(arr) {
     if (!Array.isArray(arr)) return;
     requirements.length = 0;
-    arr.forEach(r => requirements.push({ id: ++_reqId, type: r.type || 'custom_text', label: r.label || '', value: r.value || '', op: r.op === 'and' ? 'and' : 'or', enabled: r.enabled !== false }));
+    arr.forEach(r => requirements.push({
+      id: ++_reqId, type: r.type || 'custom_text', label: r.label || '', value: r.value || '',
+      op: r.op === 'and' ? 'and' : 'or', enabled: r.enabled !== false,
+      seedTerms: new Set(Array.isArray(r.seedTerms) ? r.seedTerms.map(t => t.toLowerCase()) : parseValues(r.value)),
+    }));
     renderRequirements();
   },
 };
