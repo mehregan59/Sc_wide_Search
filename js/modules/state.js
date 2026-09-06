@@ -43,6 +43,9 @@ export const state = {
   screenFilter: '',
   paginationSize: 50,
   paginationPage: 1,
+  // Set in Configure, applied automatically to Results once a search completes.
+  // 0 = no filtering (default, unchanged behaviour).
+  minTermRelevance: 0,
   stats: { queries: 0, raw: 0, dedup: 0, records: 0, noloc: 0, errors: 0, skipped: 0 },
   catCounts: { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 },
 };
