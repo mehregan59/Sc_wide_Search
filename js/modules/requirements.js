@@ -31,6 +31,9 @@ export const REQ_TYPES = [
 // Types whose value field is the thing synonyms get appended to
 export const TEXT_TYPES = new Set(['abstract_contains', 'title_contains', 'any_field_contains', 'custom_text']);
 const MULTI_VALUE_TYPES = new Set(['abstract_contains','title_contains','any_field_contains','source_type_is','language_is','category_is']);
+// Beyond this many comma-separated values, AND is unlikely to ever match — a field this
+// large is almost always one concept's full synonym list, which needs ANY (OR), not ALL.
+const AND_WARN_THRESHOLD = 5;
 
 function parseValues(val) { return (val || '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean); }
 
@@ -127,13 +130,20 @@ export function renderRequirements() {
       <option value="and" ${req.op === 'and' ? 'selected' : ''}>AND (all must match)</option>
     </select>` : '';
     const valuePlaceholder = isMulti ? 'value1, value2, value3…' : 'value';
-    return `<div class="req-row ${req.enabled ? 'req-enabled' : 'req-disabled'}" id="req-row-${req.id}">
-      <input type="checkbox" class="req-enable-toggle" ${req.enabled ? 'checked' : ''} onchange="SWDReq.toggle(${req.id},this.checked)" />
-      <input type="text" class="req-label" value="${esc(req.label)}" placeholder="Requirement label" onchange="SWDReq.rename(${req.id},this.value)" />
-      <select class="req-type-select" onchange="SWDReq.setType(${req.id},this.value)">${typeOpts}</select>
-      ${needsValue ? `<input type="text" class="req-value" value="${esc(req.value || '')}" placeholder="${valuePlaceholder}" onchange="SWDReq.setValue(${req.id},this.value)" />` : ''}
-      ${opSelect}
-      <button class="req-remove" onclick="SWDReq.remove(${req.id})">✕</button>
+    const valCount = isMulti ? parseValues(req.value).length : 0;
+    const andWarn = (isMulti && req.op === 'and' && valCount > AND_WARN_THRESHOLD)
+      ? `<div class="req-and-warn">&#9888; AND with ${valCount} values means ALL must appear together in one record — that's very unlikely if these are synonyms of the same idea. If they're synonyms, switch to OR; split them into separate requirements only if they're genuinely different things that must all be present.</div>`
+      : '';
+    return `<div class="req-row-wrap">
+      <div class="req-row ${req.enabled ? 'req-enabled' : 'req-disabled'}" id="req-row-${req.id}">
+        <input type="checkbox" class="req-enable-toggle" ${req.enabled ? 'checked' : ''} onchange="SWDReq.toggle(${req.id},this.checked)" />
+        <input type="text" class="req-label" value="${esc(req.label)}" placeholder="Requirement label" onchange="SWDReq.rename(${req.id},this.value)" />
+        <select class="req-type-select" onchange="SWDReq.setType(${req.id},this.value)">${typeOpts}</select>
+        ${needsValue ? `<input type="text" class="req-value" value="${esc(req.value || '')}" placeholder="${valuePlaceholder}" onchange="SWDReq.setValue(${req.id},this.value)" />` : ''}
+        ${opSelect}
+        <button class="req-remove" onclick="SWDReq.remove(${req.id})">✕</button>
+      </div>
+      ${andWarn}
     </div>`;
   }).join('');
 }
@@ -149,8 +159,8 @@ export const SWDReq = {
   toggle(id, val) { const r = requirements.find(r => r.id === id); if (r) { r.enabled = val; renderRequirements(); } },
   rename(id, label) { const r = requirements.find(r => r.id === id); if (r) r.label = label; },
   setType(id, type) { const r = requirements.find(r => r.id === id); if (r) { r.type = type; renderRequirements(); } },
-  setValue(id, val) { const r = requirements.find(r => r.id === id); if (r) r.value = val; },
-  setOp(id, op) { const r = requirements.find(r => r.id === id); if (r) r.op = (op === 'and' ? 'and' : 'or'); },
+  setValue(id, val) { const r = requirements.find(r => r.id === id); if (r) { r.value = val; renderRequirements(); } },
+  setOp(id, op) { const r = requirements.find(r => r.id === id); if (r) { r.op = (op === 'and' ? 'and' : 'or'); renderRequirements(); } },
   // Appends new comma-separated terms to a requirement's value without duplicating existing ones
   appendValue(id, newTerms) {
     const r = requirements.find(r => r.id === id);
