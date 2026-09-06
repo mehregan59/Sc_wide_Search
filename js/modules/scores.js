@@ -4,6 +4,7 @@
 import { LIVE_SCHEMA, customFields } from './schema.js';
 import { state } from './state.js';
 import { termEntries } from './extraction.js';
+import { requirements } from './requirements.js';
 
 export function scoreSchemaFit(r) {
   const active = [...LIVE_SCHEMA, ...customFields].filter(f => f.enabled);
@@ -14,23 +15,55 @@ export function scoreSchemaFit(r) {
   return Math.round((filled / active.length) * 100);
 }
 
-// Checks against the UNION of two term sources:
-//   1. Configure's raw Primary/Synonym/Extra Terms boxes (the original search keywords)
-//   2. Every term/synonym currently sitting in Requirements (termEntries from extraction.js —
-//      the same list the AI synonym prompt and AI Extraction both use)
-// Previously this only checked #1, so a Requirement full of AI-generated synonyms had
-// no effect on this score at all. Checking both makes 0% a genuinely strong signal:
-// it means none of your keywords AND none of your (possibly dozens of) synonyms appear
-// anywhere in the record's citation, abstract, or excerpt.
-export function scoreTermRelevance(r) {
-  const s = state.lastSettings;
-  const configTerms = s ? [...(s.primaryTerms || []), ...(s.synonymTerms || []), ...(s.extraTerms || [])] : [];
-  const reqTerms = termEntries().map(e => e.term);
-  const terms = [...new Set([...configTerms, ...reqTerms])].filter(Boolean);
-  if (!terms.length) return 0;
+function fieldLabelMap() {
+  const m = new Map();
+  requirements.forEach(req => m.set(req.id, req.label || 'Requirement'));
+  return m;
+}
+
+// Groups terms into CONCEPTS instead of scoring every synonym as its own unit.
+// A concept = one Requirement field (all its synonyms are alternatives for the
+// SAME thing — matching any one is enough), plus one extra bucket for Configure's
+// raw Primary/Synonym/Extra keywords. Percent = concepts matched / total concepts.
+//
+// This fixes the earlier flat-term version: a concept with 20 AI-generated synonyms
+// no longer needs all 20 present to "count" — nor does it drag the denominator up
+// and make 100% unreachable. Adding more synonyms to a concept only improves the
+// odds of catching it; it never raises the bar.
+//
+// Also returns which concepts matched and via which exact term, so the score is
+// checkable against the actual keywords the user typed/approved — not a black box.
+export function scoreTermRelevanceDetail(r) {
   const hay = [(r.full_citation || ''), (r._abstract || ''), (r.excerpt || '')].join(' ').toLowerCase();
-  const matched = terms.filter(t => hay.includes(t.toLowerCase())).length;
-  return Math.round((matched / terms.length) * 100);
+  const labelById = fieldLabelMap();
+  const concepts = [];
+
+  const s = state.lastSettings;
+  const configTerms = s ? [...(s.primaryTerms || []), ...(s.synonymTerms || []), ...(s.extraTerms || [])].filter(Boolean) : [];
+  if (configTerms.length) concepts.push({ label: 'Configure keywords', terms: configTerms });
+
+  const fieldTerms = new Map();
+  termEntries().forEach(e => {
+    e.fieldIds.forEach(fid => {
+      if (!fieldTerms.has(fid)) fieldTerms.set(fid, []);
+      fieldTerms.get(fid).push(e.term);
+    });
+  });
+  fieldTerms.forEach((terms, fid) => concepts.push({ label: labelById.get(fid) || 'Requirement', terms }));
+
+  if (!concepts.length) return { percent: 0, concepts: [] };
+
+  const scored = concepts.map(c => {
+    const matchedTerm = c.terms.find(t => hay.includes(t.toLowerCase()));
+    return { label: c.label, matched: !!matchedTerm, matchedTerm: matchedTerm || null, termCount: c.terms.length };
+  });
+  const matchedCount = scored.filter(c => c.matched).length;
+  const percent = Math.round((matchedCount / scored.length) * 100);
+  return { percent, concepts: scored };
+}
+
+export function scoreTermRelevance(r) {
+  return scoreTermRelevanceDetail(r).percent;
 }
 
 export function getExportOptions() {
@@ -53,4 +86,4 @@ export function updateSizeWarning() {
   } else { el.classList.remove('visible'); }
 }
 
-export const SWDScores = { scoreSchemaFit, scoreTermRelevance };
+export const SWDScores = { scoreSchemaFit, scoreTermRelevance, scoreTermRelevanceDetail };
